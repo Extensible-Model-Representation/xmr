@@ -5,8 +5,10 @@
  * 
  ***********************************************************/
 #include <iostream>
+#include "parsers/XmiParser.h"
 
 int main(int argc, char* argv[]){
-    std::cout << "Hello World, I am XMR!" << std::endl;
+    Parser parser;
+    std::cout << parser.parse();
     return 0;
 }
