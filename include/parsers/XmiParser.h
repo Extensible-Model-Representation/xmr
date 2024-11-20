@@ -5,8 +5,9 @@
  * 
  ***********************************************************/
 #include <string>
+#include <iostream>
 #include "xercesc/util/PlatformUtils.hpp"
-#include "xercesc/parsers/XercesDOMParser.hpp"
+#include "xercesc/framework/LocalFileInputSource.hpp"
 
 using namespace xercesc;
 
@@ -16,13 +17,11 @@ class Parser {
         std::string parse(){
             XMLPlatformUtils::Initialize();
 
-            XercesDOMParser* parser = new xercesc::XercesDOMParser();
-            parser->setExternalSchemaLocation(schemaLocation);
 
             XMLPlatformUtils::Terminate();
 
             return "true";
         }
 
-}
+};
 
