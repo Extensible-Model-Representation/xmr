@@ -57,14 +57,29 @@ class Parser {
 
             DOMDocument* doc = parser->getDocument();
             assert(doc != nullptr);
-            DOMNodeIterator* iterator =  doc->createNodeIterator(doc, DOMNodeFilter::SHOW_ALL, nullptr, true);
-            assert(iterator != nullptr);
+            // DOMNodeIterator* iterator =  doc->createNodeIterator(doc, DOMNodeFilter::SHOW_ALL, nullptr, true);
+            // assert(iterator != nullptr);
+            // DOMNode* node = iterator->getRoot();
+            // while (node != nullptr){
+            //     std::cout << XMLString::transcode(node->getNodeName()) << std::endl;
+            //     node = iterator->nextNode();
+            // }
+            DOMTreeWalker* iterator = doc->createTreeWalker(doc, DOMNodeFilter::SHOW_ALL, nullptr, true);
             DOMNode* node = iterator->getRoot();
             while (node != nullptr){
-                std::cout << XMLString::transcode(node->getNodeName()) << std::endl;
+                // std::cout << "Name: " << XMLString::transcode(node->getNodeName()) << " Type:" << node->getNodeType() << std::endl;
+                // node = iterator->nextNode();
+                switch(node->getNodeType()){
+                    case DOMNode::NodeType::ELEMENT_NODE: {
+                        DOMElement* elementNode = static_cast<DOMElement*>(node);
+                        std::cout << "Tag Value: " << XMLString::transcode(elementNode->getTagName()) << std::endl;
+                        break;
+                    }
+                    default:
+                        break;
+                }
                 node = iterator->nextNode();
             }
-
             iterator->release();
             // DOMNamedNodeMap* attributes =  doc->getAttributes();
             // assert(attributes != nullptr);
