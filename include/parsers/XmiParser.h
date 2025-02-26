@@ -17,7 +17,7 @@ using namespace xercesc;
 class Parser {
         const char * schemaLocation = "xmi.xsd";
     public:
-        std::string parse(){
+        std::string parse(char *file){
             try{
                 XMLPlatformUtils::Initialize();
 
@@ -34,7 +34,7 @@ class Parser {
             ErrorHandler* errHandler = (ErrorHandler*) new HandlerBase();
             parser->setErrorHandler(errHandler);
 
-            char* xmiFile = "/home/jcisneros/school/senior_design/design/Example_Queue_Papyrus/Example_Queue.uml";
+            char* xmiFile = file;
 
             try{
                 parser->parse(xmiFile);
