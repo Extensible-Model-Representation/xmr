@@ -5,8 +5,10 @@
  *
  ***********************************************************/
 #include <string>
+#include <unordered_map>
 
 #include "parsers/IParser.hpp"
+#include "xercesc/dom/DOMElement.hpp"
 #include "xercesc/parsers/XercesDOMParser.hpp"
 
 #define Error nullptr
@@ -14,15 +16,46 @@
 namespace XMR {
 
 class PapyrusParser : public IParser {
-  std::string schemaLocation_;
-  const char* packageElementTag_ = "packagedElement";
-  const char* idKey_ = "xmi:id";
-  const char* typeKey_ = "xmi:type";
-
   xercesc::XercesDOMParser* parser_ = nullptr;
   xercesc::ErrorHandler* errHandler_ = nullptr;
 
+  std::string schemaLocation_;
+  // const char* packageElementTag_ = "packagedElement";
+  const char* idKey_ = "xmi:id";
+  const char* typeKey_ = "xmi:type";
+
+  // Various values returned from "xmi:type" key in XML DOM
+  std::string packageType_ = "uml:Package";
+  std::string packageImportType_ = "uml:PackageImport";
+  std::string classType_ = "uml:Class";
+  std::string interactionType_ = "uml:Interaction";
+  std::string associationType_ = "uml:Association";
+  std::string propertyType_ = "uml:Property";
+  std::string operationType_ = "uml:Operation";
+
+  enum UmlType {
+    PACKAGE,
+    PACKAGE_IMPORT,
+    CLASS,
+    INTERACTION,
+    ASSOCIATION,
+    PROPERTY,
+    OPERATION
+  };
+  std::unordered_map<std::string, UmlType> umlStringIdMap_ = {
+      {packageType_, UmlType::PACKAGE},
+      {packageImportType_, UmlType::PACKAGE_IMPORT},
+      {classType_, UmlType::CLASS},
+      {interactionType_, UmlType::INTERACTION},
+      {associationType_, UmlType::ASSOCIATION},
+      {propertyType_, UmlType::PROPERTY},
+      {operationType_, UmlType::OPERATION}};
+
   ModelNode* parseModel(xercesc::DOMNode* model);
+  Package* parsePackage(xercesc::DOMElement* package);
+  ModuleNode* parseModule(xercesc::DOMElement* module);
+  Operator* parseOperator(xercesc::DOMElement* op);
+  Attribute* parseAttribute(xercesc::DOMElement* attribute);
 
  public:
   // Constructor

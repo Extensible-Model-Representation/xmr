@@ -5,9 +5,12 @@
  *
  ***********************************************************/
 #include <cstddef>
+#include <cstring>
 #include <ostream>
 #include <string>
 #include <vector>
+
+#define MAX_STRING_SIZE 100
 
 namespace XMR {
 
@@ -26,28 +29,147 @@ class Node {
   ~Node() = default;
 };
 
+enum Visibility { PUBLIC, PRIVATE };
+
 class PackageImport : public Node {};
-
-class Package : public Node {};
-
-class Module : public Node {};
 
 class Relationship : public Node {};
 
-class Operator : public Node {};
+class Operator : public Node {
+  char name_[MAX_STRING_SIZE];
+  char id_[MAX_STRING_SIZE];
+  Visibility visibility_;
 
-class Attribute : public Node {};
+ public:
+  Operator(char* name, char* id, Visibility visibility = Visibility::PUBLIC)
+      : visibility_(visibility) {
+    strncpy(name_, name, MAX_STRING_SIZE);
+    strncpy(id_, id, MAX_STRING_SIZE);
+  }
 
-class ModelNode : public Node {
-  std::string name_;
-  std::string id_;
-  std::vector<PackageImport*> packageImports_;
+  void generate(std::ostream& os) final {
+    os << "Called Operator Generate for Operator Node: " << std::endl;
+    os << *this << std::endl;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Operator node) {
+    os << "Operator Name: " << node.name_ << std::endl;
+    os << "Operator Id: " << node.id_ << std::endl;
+    os << "Operator Visiblity: " << node.visibility_ << std::endl;
+    return os;
+  }
+};
+
+class Attribute : public Node {
+  char name_[MAX_STRING_SIZE];
+  char id_[MAX_STRING_SIZE];
+  char type_[MAX_STRING_SIZE];
+  Visibility visibility_;
+
+ public:
+  Attribute(char* name, char* id, char* type,
+            Visibility visibility = Visibility::PUBLIC)
+      : visibility_(visibility) {
+    strncpy(name_, name, MAX_STRING_SIZE);
+    strncpy(id_, id, MAX_STRING_SIZE);
+    strncpy(type_, type, MAX_STRING_SIZE);
+  }
+
+  void generate(std::ostream& os) final {
+    os << "Called Attribute Generate for Attribute Node: " << std::endl;
+    os << *this << std::endl;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Attribute node) {
+    os << "Attribute Name: " << node.name_ << std::endl;
+    os << "Attribute Id: " << node.id_ << std::endl;
+    os << "Attribute Type: " << node.type_ << std::endl;
+    os << "Attribute Visiblity: " << node.visibility_ << std::endl;
+    return os;
+  }
+};
+
+class ModuleNode : public Node {
+  char name_[MAX_STRING_SIZE];
+  char id_[MAX_STRING_SIZE];
+  Visibility visibility_;
+
+  //!@todo: May need to store these in two different vectors based on visiblity?
+  std::vector<Operator*> operators_;
+  std::vector<Attribute*> attributes_;
+
+ public:
+  //!@todo: Do we want to default visibility if not set? Will it never be not
+  //! set in the metadata?
+  ModuleNode(char* name, char* id, Visibility visibility = Visibility::PUBLIC)
+      : visibility_(visibility) {
+    strncpy(name_, name, MAX_STRING_SIZE);
+    strncpy(id_, id, MAX_STRING_SIZE);
+  }
+
+  void addOperator(Operator* op) { operators_.push_back(op); }
+
+  void addAttribute(Attribute* attribute) { attributes_.push_back(attribute); }
+
+  void generate(std::ostream& os) final {
+    os << "Called Module Generate for Module Node: " << std::endl;
+    os << *this << std::endl;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const ModuleNode node) {
+    os << "Module Name: " << node.name_ << std::endl;
+    os << "Module Id: " << node.id_ << std::endl;
+    os << "Module Visiblity: " << node.visibility_ << std::endl;
+    return os;
+  }
+};
+
+class Package : public Node {
+  char name_[MAX_STRING_SIZE];
+  char id_[MAX_STRING_SIZE];
   std::vector<Package*> packages_;
-  std::vector<Module*> modules_;
+  std::vector<ModuleNode*> modules_;
   std::vector<Relationship*> relationships_;
 
  public:
-  ModelNode(std::string name, std::string id) : name_(name), id_(id) {}
+  Package(char* name, char* id) {
+    strncpy(name_, name, MAX_STRING_SIZE);
+    strncpy(id_, id, MAX_STRING_SIZE);
+  }
+
+  inline void addPackage(Package* package) { packages_.push_back(package); }
+
+  inline void addModule(ModuleNode* module) { modules_.push_back(module); }
+
+  inline void addRelationship(Relationship* relationship) {
+    relationships_.push_back(relationship);
+  }
+
+  void generate(std::ostream& os) final {
+    os << "Called Package Generate for Package Node: " << std::endl;
+    os << *this << std::endl;
+  }
+
+  friend std::ostream& operator<<(std::ostream& os, const Package node) {
+    os << "Package Name: " << node.name_ << std::endl;
+    os << "Package Id: " << node.id_ << std::endl;
+    return os;
+  }
+};
+
+class ModelNode : public Node {
+  char name_[MAX_STRING_SIZE];
+  char id_[MAX_STRING_SIZE];
+  std::vector<PackageImport*> packageImports_;
+  std::vector<Package*> packages_;
+  std::vector<ModuleNode*> modules_;
+  std::vector<Relationship*> relationships_;
+
+ public:
+  ModelNode(char* name, char* id) {
+    strncpy(name_, name, MAX_STRING_SIZE);
+    strncpy(id_, id, MAX_STRING_SIZE);
+  }
 
   inline void addPackageImport(PackageImport* packageImport) {
     packageImports_.push_back(packageImport);
@@ -55,38 +177,15 @@ class ModelNode : public Node {
 
   inline void addPackage(Package* package) { packages_.push_back(package); }
 
-  inline void addModule(Module* module) { modules_.push_back(module); }
+  inline void addModule(ModuleNode* module) { modules_.push_back(module); }
 
   inline void addRelationship(Relationship* relationship) {
     relationships_.push_back(relationship);
   }
 
   void generate(std::ostream& os) final {
-    os << *this;
-
-    os << "//Generate Packages" << std::endl;
-    for (size_t i = 0; i < packages_.size(); i++) {
-      packages_[i]->generate(os);
-      os << std::endl;
-    }
-
-    os << "//Generate Package Imports" << std::endl;
-    for (size_t i = 0; i < packages_.size(); i++) {
-      packageImports_[i]->generate(os);
-      os << std::endl;
-    }
-
-    os << "//Generate Modules" << std::endl;
-    for (size_t i = 0; i < packages_.size(); i++) {
-      modules_[i]->generate(os);
-      os << std::endl;
-    }
-
-    os << "//Generate Relationships" << std::endl;
-    for (size_t i = 0; i < packages_.size(); i++) {
-      relationships_[i]->generate(os);
-      os << std::endl;
-    }
+    os << "Called Model Generate for Model Node: " << std::endl;
+    os << *this << std::endl;
   }
 
   friend std::ostream& operator<<(std::ostream& os, const ModelNode node) {

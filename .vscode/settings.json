@@ -69,7 +69,8 @@
     "cinttypes": "cpp",
     "typeinfo": "cpp",
     "variant": "cpp",
-    "filesystem": "cpp"
+    "filesystem": "cpp",
+    "codecvt": "cpp"
   },
   "C_Cpp.clang_format_fallbackStyle": "Google",
   "editor.formatOnPaste": true,

@@ -111,18 +111,289 @@ ModelNode* PapyrusParser::parse() {
 }
 
 ModelNode* PapyrusParser::parseModel(DOMNode* model) {
+  cout << "Model" << endl;
   if (model->getNodeType() != DOMNode::NodeType::ELEMENT_NODE) {
     cerr << "Model must be DOM element" << endl;
     return nullptr;
   }
   DOMElement* modelDomElement = static_cast<DOMElement*>(model);
-  std::string modelName = XMLString::transcode(
+  char* modelName = XMLString::transcode(
       modelDomElement->getAttribute(XMLString::transcode("name")));
-  std::string modelId = XMLString::transcode(
+  char* modelId = XMLString::transcode(
       modelDomElement->getAttribute(XMLString::transcode(idKey_)));
 
   ModelNode* modelNode = new ModelNode(modelName, modelId);
+
+  // Grab children
+  DOMNodeList* nodes = modelDomElement->getChildNodes();
+
+  if (nodes != nullptr) {
+    // Loop through children of the model
+    while (nodes->getLength() > 0) {
+      DOMNode* node = nodes->item(0);
+
+      // Unsure why DOM has empty text nodes layered in teh children nodes of
+      // the model node?
+      if (node->getNodeType() == DOMNode::NodeType::TEXT_NODE) {
+        modelDomElement->removeChild(node)->release();
+#ifdef DEBUG
+        cout << "Skipping Text Node!" << endl;
+#endif
+        continue;
+      }
+
+      if (node->getNodeType() != DOMNode::NodeType::ELEMENT_NODE) {
+        cerr << "Model children must be DOM element. Element was of type: ";
+        cerr << node->getNodeType() << endl;
+        return nullptr;
+      }
+
+      DOMElement* domElement = static_cast<DOMElement*>(node);
+      char* type = XMLString::transcode(
+          domElement->getAttribute(XMLString::transcode(typeKey_)));
+      if (type == nullptr) {
+        cerr << "Model children nodes must have attributes." << endl;
+        return nullptr;
+      }
+
+      switch (umlStringIdMap_[type]) {
+        case UmlType::CLASS: {
+          ModuleNode* moduleNode = parseModule(domElement);
+          if (moduleNode == nullptr) {
+            cerr << "Failed to parse module" << endl;
+            return nullptr;
+          }
+          modelNode->addModule(moduleNode);
+
+        } break;
+        case UmlType::PACKAGE: {
+          Package* packageNode = parsePackage(domElement);
+          if (packageNode == nullptr) {
+            cerr << "Failed to parse package" << endl;
+            return nullptr;
+          }
+          modelNode->addPackage(packageNode);
+
+        } break;
+
+        default:
+          cout << "UML Type Unimplemented: " << umlStringIdMap_[type] << endl;
+          break;
+      }
+      modelDomElement->removeChild(node)->release();
+    }
+  }
+
   return modelNode;
+}
+
+Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
+  cout << "Package" << endl;
+  char* packageName =
+      XMLString::transcode(package->getAttribute(XMLString::transcode("name")));
+  char* packageId =
+      XMLString::transcode(package->getAttribute(XMLString::transcode(idKey_)));
+
+  Package* packageNode = new Package(packageName, packageId);
+
+  // Grab children
+  DOMNodeList* nodes = package->getChildNodes();
+
+  if (nodes != nullptr) {
+    // Loop through children of the package
+    while (nodes->getLength() > 0) {
+      DOMNode* node = nodes->item(0);
+
+      // Unsure why DOM has empty text nodes layered in the children nodes?
+      if (node->getNodeType() == DOMNode::NodeType::TEXT_NODE) {
+        package->removeChild(node)->release();
+#ifdef DEBUG
+        cout << "Skipping Text Node!" << endl;
+#endif
+        continue;
+      }
+
+      if (node->getNodeType() != DOMNode::NodeType::ELEMENT_NODE) {
+        cerr << "Package children must be DOM element. Element was of type: ";
+        cerr << node->getNodeType() << endl;
+        return nullptr;
+      }
+
+      DOMElement* domElement = static_cast<DOMElement*>(node);
+      char* type = XMLString::transcode(
+          domElement->getAttribute(XMLString::transcode(typeKey_)));
+      if (type == nullptr) {
+        cerr << "Package children nodes must have attributes." << endl;
+        return nullptr;
+      }
+
+      switch (umlStringIdMap_[type]) {
+        case UmlType::CLASS: {
+          ModuleNode* moduleNode = parseModule(domElement);
+          if (moduleNode == nullptr) {
+            cerr << "Failed to parse module" << endl;
+            return nullptr;
+          }
+          packageNode->addModule(moduleNode);
+        } break;
+        case UmlType::PACKAGE: {
+          Package* packageNode = parsePackage(domElement);
+          if (packageNode == nullptr) {
+            cerr << "Failed to parse package" << endl;
+            return nullptr;
+          }
+          packageNode->addPackage(packageNode);
+
+        } break;
+
+        default:
+          cout << "UML Type Unimplemented: " << umlStringIdMap_[type] << endl;
+          break;
+      }
+      package->removeChild(node)->release();
+    }
+  }
+  return packageNode;
+}
+
+ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
+  cout << "Module" << endl;
+  char* moduleName =
+      XMLString::transcode(mod->getAttribute(XMLString::transcode("name")));
+  char* moduleId =
+      XMLString::transcode(mod->getAttribute(XMLString::transcode(idKey_)));
+  const XMLCh* visAtt = mod->getAttribute(XMLString::transcode("visibility"));
+
+  char* visibility;
+  if (visAtt != nullptr) {
+    visibility = XMLString::transcode(visAtt);
+  }
+
+  ModuleNode* moduleNode;
+
+  if (visibility == nullptr)
+    moduleNode = new ModuleNode(moduleName, moduleId);
+  else {
+    // Double check its private first
+    //!@todo: Do we handle protected?
+    if (strcmp(visibility, "private") == 0) {
+      moduleNode = new ModuleNode(moduleName, moduleId, Visibility::PRIVATE);
+    } else {
+      moduleNode = new ModuleNode(moduleName, moduleId);
+    }
+  }
+
+  // Grab children
+  DOMNodeList* nodes = mod->getChildNodes();
+
+  if (nodes != nullptr) {
+    // Loop through children of the package
+    while (nodes->getLength() > 0) {
+      DOMNode* node = nodes->item(0);
+
+      // Unsure why DOM has empty text nodes layered in teh children nodes?
+      if (node->getNodeType() == DOMNode::NodeType::TEXT_NODE) {
+        mod->removeChild(node)->release();
+#ifdef DEBUG
+        cout << "Skipping Text Node!" << endl;
+#endif
+        continue;
+      }
+
+      if (node->getNodeType() != DOMNode::NodeType::ELEMENT_NODE) {
+        cerr << "Module children must be DOM element. Element was of type : ";
+        cerr << node->getNodeType() << endl;
+        return nullptr;
+      }
+
+      DOMElement* domElement = static_cast<DOMElement*>(node);
+      char* type = XMLString::transcode(
+          domElement->getAttribute(XMLString::transcode(typeKey_)));
+      if (type == nullptr) {
+        cerr << "Module children nodes must have attributes." << endl;
+        return nullptr;
+      }
+
+      switch (umlStringIdMap_[type]) {
+        case UmlType::OPERATION: {
+          Operator* operatorNode = parseOperator(domElement);
+          if (operatorNode == nullptr) {
+            cerr << "Failed to parse operator" << endl;
+            return nullptr;
+          }
+          moduleNode->addOperator(operatorNode);
+        } break;
+        case UmlType::PROPERTY: {
+          Attribute* attributeNode = parseAttribute(domElement);
+          if (attributeNode == nullptr) {
+            cerr << "Failed to parse attribute" << endl;
+            return nullptr;
+          }
+          moduleNode->addAttribute(attributeNode);
+
+        } break;
+
+        default:
+          cout << "UML Type Unimplemented: " << umlStringIdMap_[type] << endl;
+          break;
+      }
+      mod->removeChild(node)->release();
+    }
+  }
+
+  return moduleNode;
+}
+
+Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
+  cout << "Operator" << endl;
+  char* operatorName =
+      XMLString::transcode(op->getAttribute(XMLString::transcode("name")));
+  char* operatorId =
+      XMLString::transcode(op->getAttribute(XMLString::transcode(idKey_)));
+  char* visibility = XMLString::transcode(
+      op->getAttribute(XMLString::transcode("visibility")));
+  Operator* operatorNode;
+  if (visibility == nullptr)
+    operatorNode = new Operator(operatorName, operatorId);
+  else {
+    // Double check its private first, don't need to assign public as
+    // public
+    // is set by default.
+    //!@todo: Do we handle protected?
+    if (strcmp(visibility, "private") == 0) {
+      operatorNode =
+          new Operator(operatorName, operatorId, Visibility::PRIVATE);
+    }
+  }
+
+  return operatorNode;
+}
+
+Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
+  cout << "Attribute" << endl;
+  char* attributeName = XMLString::transcode(
+      attribute->getAttribute(XMLString::transcode("name")));
+  char* attributeId = XMLString::transcode(
+      attribute->getAttribute(XMLString::transcode(idKey_)));
+  char* visibility = XMLString::transcode(
+      attribute->getAttribute(XMLString::transcode("visibility")));
+  char* type = "TODO";
+
+  Attribute* attributeNode;
+  if (visibility == nullptr)
+    attributeNode = new Attribute(attributeName, attributeId, type);
+  else {
+    // Double check its private first, don't need to assign public as
+    // public
+    // is set by default.
+    //!@todo: Do we handle protected?
+    if (strcmp(visibility, "private") == 0) {
+      attributeNode =
+          new Attribute(attributeName, attributeId, type, Visibility::PRIVATE);
+    }
+  }
+
+  return attributeNode;
 }
 
 }  // namespace XMR
