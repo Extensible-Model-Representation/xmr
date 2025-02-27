@@ -22,7 +22,7 @@ class PapyrusParser : public IParser {
   xercesc::XercesDOMParser* parser_ = nullptr;
   xercesc::ErrorHandler* errHandler_ = nullptr;
 
-  Node* parseModel(xercesc::DOMNode* model);
+  ModelNode* parseModel(xercesc::DOMNode* model);
 
  public:
   // Constructor
@@ -34,7 +34,7 @@ class PapyrusParser : public IParser {
   bool setInputFile(char* fileName) final;
 
   // Main parse function
-  Node* parse() final;
+  ModelNode* parse() final;
   // // DOMNodeIterator* iterator =  doc->createNodeIterator(doc,
   // // DOMNodeFilter::SHOW_ALL, nullptr, true); assert(iterator !=
   // nullptr);

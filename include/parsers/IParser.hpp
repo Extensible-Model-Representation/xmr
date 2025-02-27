@@ -19,7 +19,7 @@ class IParser {
    */
   virtual ~IParser() = default;
 
-  virtual Node* parse() = 0;
+  virtual ModelNode* parse() = 0;
 
   /**
    * Sets file to parse from

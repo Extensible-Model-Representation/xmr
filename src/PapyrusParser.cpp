@@ -84,7 +84,7 @@ bool PapyrusParser::setInputFile(char* fileName) {
   return true;
 }
 
-Node* PapyrusParser::parse() {
+ModelNode* PapyrusParser::parse() {
   DOMDocument* doc = parser_->getDocument();
   if (doc == nullptr) {
     cerr << "Failed to get DOM doc" << endl;
@@ -110,10 +110,19 @@ Node* PapyrusParser::parse() {
   return parseModel(nodes->item(0));
 }
 
-Node* PapyrusParser::parseModel(DOMNode* model) {
-  cout << "Node Type: " << model->getNodeType();
-  cout << " Node Name: " << XMLString::transcode(model->getNodeName()) << endl;
-  return nullptr;
+ModelNode* PapyrusParser::parseModel(DOMNode* model) {
+  if (model->getNodeType() != DOMNode::NodeType::ELEMENT_NODE) {
+    cerr << "Model must be DOM element" << endl;
+    return nullptr;
+  }
+  DOMElement* modelDomElement = static_cast<DOMElement*>(model);
+  std::string modelName = XMLString::transcode(
+      modelDomElement->getAttribute(XMLString::transcode("name")));
+  std::string modelId = XMLString::transcode(
+      modelDomElement->getAttribute(XMLString::transcode(idKey_)));
+
+  ModelNode* modelNode = new ModelNode(modelName, modelId);
+  return modelNode;
 }
 
 }  // namespace XMR

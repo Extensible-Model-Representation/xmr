@@ -59,8 +59,8 @@ int main(int argc, char* argv[]) {
     return -1;
   };
 
-  Node* root = parser->parse();
-  if (root)
+  ModelNode* root = parser->parse();
+  if (root != nullptr)
     root->generate(cout);
 
   else {
