@@ -1,9 +1,9 @@
-project(XMR)
-include(GNUInstallDirs)
 cmake_minimum_required(VERSION 3.25)
+project(XMR VERSION 0.0.0.1 LANGUAGES CXX)
+include(GNUInstallDirs)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++2a")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20")
 
 include(FetchContent)
 
@@ -27,9 +27,9 @@ FetchContent_MakeAvailable(googletest)
 
 set(${BINARY_DIR} build/bin/)
 
-FILE(GLOB SRCS src/*)
-FILE(GLOB HEADERS include/*)
+FILE(GLOB_RECURSE SRCS ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp)
+FILE(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_LIST_DIR}/include/*.hpp)
 
-include_directories(include)
-add_executable(${PROJECT_NAME} ${SRCS})
+include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
+add_executable(${PROJECT_NAME} ${SRCS} ${HEADERS} ${PARSER_FILES})
 target_link_libraries(${PROJECT_NAME} PUBLIC xerces-c)
