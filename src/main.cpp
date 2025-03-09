@@ -5,6 +5,7 @@
  *
  ***********************************************************/
 #include <ctype.h>
+#include <dlfcn.h>
 #include <unistd.h>
 
 #include <iostream>
@@ -18,41 +19,65 @@ using namespace std;
 int main(int argc, char* argv[]) {
   // Below is the argument parser. Currently takes arg -f for filename
   char* file_name = NULL;
+  char* library_path = NULL;
   int c;
 
   opterr = 0;
-  while ((c = getopt(argc, argv, "f:")) !=
+  while ((c = getopt(argc, argv, "f:l:")) !=
          -1)  // The last arg contains a list of valid arguments
   {
     switch (c) {
       case 'f':
         file_name = optarg;
         break;
+      case 'l':
+        library_path = optarg;
+        break;
       case '?':
-        if (optopt == 'f') {
-          std::cerr << "Option -f requires an argument" << std::endl;
+        if (optopt == 'f' || optopt == 'l') {
+          cerr << "Option " << optopt << " requires an argument" << endl;
         } else if (isprint(optopt)) {
-          std::cerr << "Unknown option. Usage: -f <filename>" << std::endl;
+          cerr << "Unknown option. Usage: -f <filename>" << endl;
         } else {
-          std::cerr << "Unkown character" << std::endl;
+          cerr << "Unkown character" << endl;
         }
         return 1;
       default:
-        std::cerr << "Unspecified input error" << std::endl;
+        cerr << "Unspecified input error" << endl;
         abort();
     }
   }
 
   for (int index = optind; index < argc; ++index) {
-    std::cout << "Non-option argument " << argv[index] << "\n" << std::endl;
+    cout << "Non-option argument " << argv[index] << "\n" << endl;
   }
   if (file_name == NULL) {
-    std::cerr << "Must specify an input file. Usage: -f <filename>"
-              << std::endl;
+    cerr << "Must specify an input file. Usage: -f <filename>" << endl;
+    abort();
+  }
+  if (library_path == NULL) {
+    cerr << "Must specify a library path. Usage: -l <library_path>" << endl;
     abort();
   }
 
-  PapyrusParser* parser = new PapyrusParser();
+  void* handle = dlopen(library_path, RTLD_LAZY);
+  if (handle == NULL) {
+    cerr << "Could not load library .so file" << endl;
+    abort();
+  }
+
+  IParser* (*create)() = (IParser * (*)()) dlsym(handle, "create");
+  if (create == NULL) {
+    cerr << "Could not load parse object create method: " << dlerror() << endl;
+    abort();
+  }
+  void (*destroy)(IParser*) = (void (*)(IParser*))dlsym(handle, "destroy");
+  if (create == NULL) {
+    cerr << "Could not load parse object delete method: " << dlerror() << endl;
+    abort();
+  }
+  IParser* parser = (IParser*)create();
+
   if (!parser->setInputFile(file_name)) {
     cerr << "Failed to set input file" << file_name << endl;
     delete parser;
@@ -68,5 +93,7 @@ int main(int argc, char* argv[]) {
     delete parser;
     return -1;
   }
+  destroy(parser);
+  dlclose(handle);
   return 0;
 }
