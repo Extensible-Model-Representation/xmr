@@ -1,1 +1,0 @@
-/usr/bin/c++ -fPIC  -std=c++20 -shared -Wl,-soname,libparser.so -o libparser.so CMakeFiles/parser.dir/parsers/PapyrusParser.cpp.o 
