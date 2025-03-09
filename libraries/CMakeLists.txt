@@ -1,0 +1,5 @@
+option(PAPYRUS "Use the built in papyrus library" ON)
+if(PAPYRUS)
+    message("Loaded built in papyrus library")
+    add_library(parser ./parsers/PapyrusParser.cpp)
+endif()
