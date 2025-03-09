@@ -1,5 +1,2 @@
-option(PAPYRUS "Use the built in papyrus library" ON)
-if(PAPYRUS)
-    message("Loaded built in papyrus library")
-    add_library(parser ./parsers/PapyrusParser.cpp)
-endif()
+add_library(parser ./parsers/PapyrusParser.cpp)
+set_target_properties(parser PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
