@@ -1,5 +1,5 @@
 {
-  "cmake.sourceDirectory": "/home/jcisneros/school/senior_design/xmr",
+  "cmake.sourceDirectory": "/home/jcisneros/xmr/xmr",
   "files.associations": {
     "iostream": "cpp",
     "cctype": "cpp",
