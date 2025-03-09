@@ -396,4 +396,6 @@ Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
   return attributeNode;
 }
 
+extern "C" IParser* create() { return new PapyrusParser; }
+extern "C" void destroy(IParser* parser) { delete parser; }
 }  // namespace XMR
