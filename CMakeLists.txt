@@ -16,14 +16,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(xerces-c)
 
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG e39786088138f2749d64e9e90e0f9902daa77c40
-    FIND_PACKAGE_ARGS NAMES GTest
-)
+# FetchContent_Declare(
+#     googletest
+#     GIT_REPOSITORY https://github.com/google/googletest.git
+#     GIT_TAG e39786088138f2749d64e9e90e0f9902daa77c40
+#     FIND_PACKAGE_ARGS NAMES GTest
+# )
 
-FetchContent_MakeAvailable(googletest)
+# FetchContent_MakeAvailable(googletest)
 
 set(${BINARY_DIR} build/bin/)
 
