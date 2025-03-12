@@ -4,8 +4,6 @@
  * @brief:
  *
  ***********************************************************/
-#pragma once
-
 #include <ostream>
 #include <parsers/Node.hpp>
 

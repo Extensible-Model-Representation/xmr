@@ -121,7 +121,6 @@ ModelNode* PapyrusParser::parse() {
 }
 
 ModelNode* PapyrusParser::parseModel(DOMNode* model) {
-  cout << "Model" << endl;
   if (model->getNodeType() != DOMNode::NodeType::ELEMENT_NODE) {
     cerr << "Model must be DOM element" << endl;
     return nullptr;
@@ -172,6 +171,7 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
             return nullptr;
           }
           modelNode->addModule(moduleNode);
+          idNameMap_[moduleNode->id_] = moduleNode->name_;
 
         } break;
         case UmlType::PACKAGE: {
@@ -192,12 +192,11 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
       XMLString::release(&type);
     }
   }
-  cout << *modelNode;
+  modelNode->idNameMap_ = this->idNameMap_;
   return modelNode;
 }
 
 Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
-  cout << "Package" << endl;
   char* packageName = XMLString::transcode(package->getAttribute(nameKey_));
   char* packageId = XMLString::transcode(package->getAttribute(idKey_));
 
@@ -240,6 +239,7 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
             cerr << "Failed to parse module" << endl;
             return nullptr;
           }
+          idNameMap_[moduleNode->id_] = moduleNode->name_;
           packageNode->addModule(moduleNode);
         } break;
         case UmlType::PACKAGE: {
@@ -260,12 +260,10 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
       XMLString::release(&type);
     }
   }
-  cout << *packageNode;
   return packageNode;
 }
 
 ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
-  cout << "Module" << endl;
   char* moduleName = XMLString::transcode(mod->getAttribute(nameKey_));
   char* moduleId = XMLString::transcode(mod->getAttribute(idKey_));
   const XMLCh* visAtt = mod->getAttribute(visibilityKey_);
@@ -347,7 +345,6 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       XMLString::release(&type);
     }
   }
-  cout << *moduleNode;
   return moduleNode;
 }
 
@@ -376,6 +373,7 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
   DOMNodeList* params = op->getElementsByTagName(paramKey_);
   if (params->getLength() != 0) {
     XMLCh* directionKey = XMLString::transcode("direction");
+
     for (size_t i = 0; i < params->getLength(); i++) {
       DOMElement* param = (DOMElement*)params->item(i);
       char* direction = XMLString::transcode(param->getAttribute(directionKey));
@@ -410,12 +408,10 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
     XMLString::release(&directionKey);
   }
 
-  cout << *operatorNode;
   return operatorNode;
 }
 
 Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
-  cout << "Attribute" << endl;
   char* attributeName = XMLString::transcode(attribute->getAttribute(nameKey_));
   char* attributeId = XMLString::transcode(attribute->getAttribute(idKey_));
   char* visibility =
@@ -452,10 +448,8 @@ Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
     }
   }
   XMLString::release(&visibility);
-  cout << *attributeNode;
   return attributeNode;
 }
 extern "C" IParser* create_parser() { return new PapyrusParser; }
 extern "C" void destroy_parser(IParser* parser) { delete parser; }
-
 }  // namespace XMR

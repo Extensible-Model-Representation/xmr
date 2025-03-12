@@ -4,7 +4,6 @@
  * @brief:
  *
  ***********************************************************/
-#pragma once
 #include <string>
 #include <unordered_map>
 
@@ -59,6 +58,10 @@ class PapyrusParser : public IParser {
       {propertyType_, UmlType::PROPERTY},
       {operationType_, UmlType::OPERATION},
       {primitiveType_, UmlType::PRIMITIVE}};
+
+  // used to store XMI id to name mapping to be used when
+  // user defined modules are also used for attributes and param types.
+  std::unordered_map<std::string, std::string> idNameMap_;
 
   ModelNode* parseModel(xercesc::DOMNode* model);
   Package* parsePackage(xercesc::DOMElement* package);

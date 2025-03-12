@@ -7,8 +7,11 @@
 #pragma once
 #include <cstddef>
 #include <cstring>
+#include <iostream>
 #include <ostream>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #define MAX_STRING_SIZE 100
@@ -46,12 +49,12 @@ class Type {
 };
 
 class Param {
+ public:
   char* name_ = nullptr;
   char* id_ = nullptr;
   Type* type_ = nullptr;
   Direction direction_;
 
- public:
   Param(char* name, char* id, Type* type, Direction direction = Direction::IN)
       : name_(name), id_(id), type_(type), direction_(direction) {}
 
@@ -64,13 +67,13 @@ class Param {
 };
 
 class Operator : public Node {
+ public:
   char* name_ = nullptr;
   char* id_ = nullptr;
   Visibility visibility_;
   std::vector<Param*> params_;
   Type* returnType_ = nullptr;
 
- public:
   Operator(char* name, char* id, Visibility visibility = Visibility::PUBLIC,
            Type* returnType = nullptr)
       : name_(name),
@@ -103,12 +106,12 @@ class Operator : public Node {
 };
 
 class Attribute : public Node {
+ public:
   char* name_ = nullptr;
   char* id_ = nullptr;
   Type* type_ = nullptr;
   Visibility visibility_;
 
- public:
   Attribute(char* name, char* id, Type* type,
             Visibility visibility = Visibility::PUBLIC)
       : name_(name), id_(id), type_(type), visibility_(visibility) {}
@@ -133,18 +136,45 @@ class ModuleNode : public Node {
   char* id_ = nullptr;
   Visibility visibility_;
 
-  //!@todo: May need to store these in two different vectors based on visiblity?
-  std::vector<Operator*> operators_;
-  std::vector<Attribute*> attributes_;
+  std::vector<Operator*> publicOperators_;
+  std::vector<Operator*> privateOperators_;
+  std::vector<Attribute*> publicAttributes_;
+  std::vector<Attribute*> privateAttributes_;
+  std::unordered_set<char*> dependencyList_;
 
   //!@todo: Do we want to default visibility if not set? Will it never be not
   //! set in the metadata?
   ModuleNode(char* name, char* id, Visibility visibility = Visibility::PUBLIC)
       : name_(name), id_(id), visibility_(visibility) {}
 
-  void addOperator(Operator* op) { operators_.push_back(op); }
+  std::vector<char*> getDependencies() {
+    return std::vector<char*>(dependencyList_.begin(), dependencyList_.end());
+  }
 
-  void addAttribute(Attribute* attribute) { attributes_.push_back(attribute); }
+  void addOperator(Operator* op) {
+    for (size_t i = 0; i < op->params_.size(); i++) {
+      if (!op->params_[i]->type_->isPrimitive_) {
+        dependencyList_.insert(op->params_[i]->type_->type_);
+      }
+    }
+    if (op->visibility_ == Visibility::PRIVATE) {
+      privateOperators_.push_back(op);
+
+    } else {
+      publicOperators_.push_back(op);
+    }
+  }
+
+  void addAttribute(Attribute* attribute) {
+    if (!attribute->type_->isPrimitive_) {
+      dependencyList_.insert(attribute->type_->type_);
+    }
+    if (attribute->visibility_ == Visibility::PRIVATE) {
+      privateAttributes_.push_back(attribute);
+    } else {
+      publicAttributes_.push_back(attribute);
+    }
+  }
 
   void generate(std::ostream& os) final {
     os << "Called Module Generate for Module Node: " << std::endl;
@@ -197,6 +227,10 @@ class ModelNode : public Node {
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
   std::vector<Relationship*> relationships_;
+
+  // used to by copied at the end of parse so during code generation step can be
+  // used to lookup type names by xmi id
+  std::unordered_map<std::string, std::string> idNameMap_;
 
   ModelNode(char* name, char* id) : name_(name), id_(id) {}
 

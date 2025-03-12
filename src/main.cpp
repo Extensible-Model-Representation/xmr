@@ -66,11 +66,11 @@ int main(int argc, char* argv[]) {
   }
   if (parser_file == NULL) {
     std::cout << "Using default papyrus parser" << std::endl;
-    parser_file = "./parsers/libpapyrus.so";
+    parser_file = "./parsers/libPapyrusParser.so";
   }
   if (generator_file == NULL) {
     std::cout << "Using default cpp generator" << std::endl;
-    generator_file = "./generators/libcpp.so";
+    generator_file = "./generators/libCPPGenerator.so";
   }
   if (out_file_name == NULL) {
     std::cout << "Default output file name to a.cpp" << std::endl;
