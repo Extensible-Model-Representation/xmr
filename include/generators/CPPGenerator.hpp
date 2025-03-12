@@ -4,6 +4,8 @@
  * @brief:
  *
  ***********************************************************/
+#pragma once
+
 #include <generators/IGenerator.hpp>
 namespace XMR {
 

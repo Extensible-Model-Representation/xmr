@@ -4,6 +4,7 @@
  * @brief:
  *
  ***********************************************************/
+#pragma once
 #include <string>
 
 #include "parsers/Node.hpp"
