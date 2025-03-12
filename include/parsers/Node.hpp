@@ -4,6 +4,7 @@
  * @brief:
  *
  ***********************************************************/
+#pragma once
 #include <cstddef>
 #include <cstring>
 #include <ostream>
@@ -30,50 +31,87 @@ class Node {
 };
 
 enum Visibility { PUBLIC, PRIVATE };
+enum Direction { IN, OUT };
 
 class PackageImport : public Node {};
 
 class Relationship : public Node {};
 
-class Operator : public Node {
-  char name_[MAX_STRING_SIZE];
-  char id_[MAX_STRING_SIZE];
-  Visibility visibility_;
+class Type {
+ public:
+  char* type_;
+  bool isPrimitive_;
+  Type(char* type, bool isPrimitive = false)
+      : type_(type), isPrimitive_(isPrimitive) {}
+};
+
+class Param {
+  char* name_ = nullptr;
+  char* id_ = nullptr;
+  Type* type_ = nullptr;
+  Direction direction_;
 
  public:
-  Operator(char* name, char* id, Visibility visibility = Visibility::PUBLIC)
-      : visibility_(visibility) {
-    strncpy(name_, name, MAX_STRING_SIZE);
-    strncpy(id_, id, MAX_STRING_SIZE);
+  Param(char* name, char* id, Type* type, Direction direction = Direction::IN)
+      : name_(name), id_(id), type_(type), direction_(direction) {}
+
+  friend std::ostream& operator<<(std::ostream& os, const Param node) {
+    os << "Param Name: " << node.name_ << " Param ID: " << node.id_
+       << " Param Type: " << node.type_->type_
+       << " Param Direction: " << node.direction_ << std::endl;
+    return os;
   }
+};
+
+class Operator : public Node {
+  char* name_ = nullptr;
+  char* id_ = nullptr;
+  Visibility visibility_;
+  std::vector<Param*> params_;
+  Type* returnType_ = nullptr;
+
+ public:
+  Operator(char* name, char* id, Visibility visibility = Visibility::PUBLIC,
+           Type* returnType = nullptr)
+      : name_(name),
+        id_(id),
+        visibility_(visibility),
+        returnType_(returnType) {}
 
   void generate(std::ostream& os) final {
     os << "Called Operator Generate for Operator Node: " << std::endl;
     os << *this << std::endl;
   }
 
+  void addParam(Param* param) { params_.push_back(param); }
+  void addReturnType(Type* returnType) { returnType_ = returnType; }
+
   friend std::ostream& operator<<(std::ostream& os, const Operator node) {
     os << "Operator Name: " << node.name_ << std::endl;
     os << "Operator Id: " << node.id_ << std::endl;
     os << "Operator Visiblity: " << node.visibility_ << std::endl;
+    os << "Operator Return Type: "
+       << (node.returnType_ == nullptr ? "Void" : node.returnType_->type_)
+       << std::endl;
+    os << "Operator Params: " << std::endl;
+    for (size_t i = 0; i < node.params_.size(); i++) {
+      os << *node.params_[i];
+    }
+    os << std::endl;
     return os;
   }
 };
 
 class Attribute : public Node {
-  char name_[MAX_STRING_SIZE];
-  char id_[MAX_STRING_SIZE];
-  char type_[MAX_STRING_SIZE];
+  char* name_ = nullptr;
+  char* id_ = nullptr;
+  Type* type_ = nullptr;
   Visibility visibility_;
 
  public:
-  Attribute(char* name, char* id, char* type,
+  Attribute(char* name, char* id, Type* type,
             Visibility visibility = Visibility::PUBLIC)
-      : visibility_(visibility) {
-    strncpy(name_, name, MAX_STRING_SIZE);
-    strncpy(id_, id, MAX_STRING_SIZE);
-    strncpy(type_, type, MAX_STRING_SIZE);
-  }
+      : name_(name), id_(id), type_(type), visibility_(visibility) {}
 
   void generate(std::ostream& os) final {
     os << "Called Attribute Generate for Attribute Node: " << std::endl;
@@ -83,29 +121,26 @@ class Attribute : public Node {
   friend std::ostream& operator<<(std::ostream& os, const Attribute node) {
     os << "Attribute Name: " << node.name_ << std::endl;
     os << "Attribute Id: " << node.id_ << std::endl;
-    os << "Attribute Type: " << node.type_ << std::endl;
+    os << "Attribute Type: " << node.type_->type_ << std::endl;
     os << "Attribute Visiblity: " << node.visibility_ << std::endl;
     return os;
   }
 };
 
 class ModuleNode : public Node {
-  char name_[MAX_STRING_SIZE];
-  char id_[MAX_STRING_SIZE];
+ public:
+  char* name_ = nullptr;
+  char* id_ = nullptr;
   Visibility visibility_;
 
   //!@todo: May need to store these in two different vectors based on visiblity?
   std::vector<Operator*> operators_;
   std::vector<Attribute*> attributes_;
 
- public:
   //!@todo: Do we want to default visibility if not set? Will it never be not
   //! set in the metadata?
   ModuleNode(char* name, char* id, Visibility visibility = Visibility::PUBLIC)
-      : visibility_(visibility) {
-    strncpy(name_, name, MAX_STRING_SIZE);
-    strncpy(id_, id, MAX_STRING_SIZE);
-  }
+      : name_(name), id_(id), visibility_(visibility) {}
 
   void addOperator(Operator* op) { operators_.push_back(op); }
 
@@ -125,17 +160,14 @@ class ModuleNode : public Node {
 };
 
 class Package : public Node {
-  char name_[MAX_STRING_SIZE];
-  char id_[MAX_STRING_SIZE];
+ public:
+  char* name_ = nullptr;
+  char* id_ = nullptr;
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
   std::vector<Relationship*> relationships_;
 
- public:
-  Package(char* name, char* id) {
-    strncpy(name_, name, MAX_STRING_SIZE);
-    strncpy(id_, id, MAX_STRING_SIZE);
-  }
+  Package(char* name, char* id) : name_(name), id_(id) {}
 
   inline void addPackage(Package* package) { packages_.push_back(package); }
 
@@ -158,18 +190,15 @@ class Package : public Node {
 };
 
 class ModelNode : public Node {
-  char name_[MAX_STRING_SIZE];
-  char id_[MAX_STRING_SIZE];
+ public:
+  char* name_ = nullptr;
+  char* id_ = nullptr;
   std::vector<PackageImport*> packageImports_;
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
   std::vector<Relationship*> relationships_;
 
- public:
-  ModelNode(char* name, char* id) {
-    strncpy(name_, name, MAX_STRING_SIZE);
-    strncpy(id_, id, MAX_STRING_SIZE);
-  }
+  ModelNode(char* name, char* id) : name_(name), id_(id) {}
 
   inline void addPackageImport(PackageImport* packageImport) {
     packageImports_.push_back(packageImport);

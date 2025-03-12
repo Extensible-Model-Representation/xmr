@@ -10,6 +10,7 @@
 #include "parsers/IParser.hpp"
 #include "xercesc/dom/DOMElement.hpp"
 #include "xercesc/parsers/XercesDOMParser.hpp"
+#include "xercesc/util/XMLChar.hpp"
 
 #define Error nullptr
 
@@ -19,10 +20,14 @@ class PapyrusParser : public IParser {
   xercesc::XercesDOMParser* parser_ = nullptr;
   xercesc::ErrorHandler* errHandler_ = nullptr;
 
-  std::string schemaLocation_;
   // const char* packageElementTag_ = "packagedElement";
-  const char* idKey_ = "xmi:id";
-  const char* typeKey_ = "xmi:type";
+  XMLCh* idKey_;
+  XMLCh* typeKey_;
+  XMLCh* nameKey_;
+  XMLCh* visibilityKey_;
+  XMLCh* attributeTypeKey_;
+  XMLCh* hrefKey_;
+  XMLCh* paramKey_;
 
   // Various values returned from "xmi:type" key in XML DOM
   std::string packageType_ = "uml:Package";
@@ -32,6 +37,7 @@ class PapyrusParser : public IParser {
   std::string associationType_ = "uml:Association";
   std::string propertyType_ = "uml:Property";
   std::string operationType_ = "uml:Operation";
+  std::string primitiveType_ = "uml:PrimitiveType";
 
   enum UmlType {
     PACKAGE,
@@ -40,7 +46,8 @@ class PapyrusParser : public IParser {
     INTERACTION,
     ASSOCIATION,
     PROPERTY,
-    OPERATION
+    OPERATION,
+    PRIMITIVE
   };
   std::unordered_map<std::string, UmlType> umlStringIdMap_ = {
       {packageType_, UmlType::PACKAGE},
@@ -49,7 +56,8 @@ class PapyrusParser : public IParser {
       {interactionType_, UmlType::INTERACTION},
       {associationType_, UmlType::ASSOCIATION},
       {propertyType_, UmlType::PROPERTY},
-      {operationType_, UmlType::OPERATION}};
+      {operationType_, UmlType::OPERATION},
+      {primitiveType_, UmlType::PRIMITIVE}};
 
   ModelNode* parseModel(xercesc::DOMNode* model);
   Package* parsePackage(xercesc::DOMElement* package);
@@ -68,70 +76,6 @@ class PapyrusParser : public IParser {
 
   // Main parse function
   ModelNode* parse() final;
-  // // DOMNodeIterator* iterator =  doc->createNodeIterator(doc,
-  // // DOMNodeFilter::SHOW_ALL, nullptr, true); assert(iterator !=
-  // nullptr);
-  // // DOMNode* node = iterator->getRoot();
-  // // while (node != nullptr){
-  // //     std::cout << XMLString::transcode(node->getNodeName()) <<
-  // std::endl;
-  // //     node = iterator->nextNode();
-  // // }
-  // DOMTreeWalker* iterator =
-  //     doc->createTreeWalker(doc, DOMNodeFilter::SHOW_ALL, nullptr, true);
-  // DOMNode* node = iterator->getRoot();
-  // while (node != nullptr) {
-  //   // std::cout << "Name: " << XMLString::transcode(node->getNodeName())
-  //   << "
-  //   // Type:" << node->getNodeType() << std::endl; node =
-  //   // iterator->nextNode();
-  //   switch (node->getNodeType()) {
-  //     case DOMNode::NodeType::ELEMENT_NODE: {
-  //       DOMElement* elementNode = static_cast<DOMElement*>(node);
-  //       const XMLCh* xmi_type =
-  //           elementNode->getAttribute(XMLString::transcode(typeKey));
-  //       const XMLCh* xmi_id =
-  //           elementNode->getAttribute(XMLString::transcode(idKey));
-  //       if (XMLString::equals(
-  //               packageElementTag,
-  //               XMLString::transcode(elementNode->getTagName()))) {
-  //         if (xmi_id == nullptr) {
-  //           std::cerr << "XMI Packaged Elements Require an Id" <<
-  //           std::endl; return (Error);
-  //         }
-
-  //         if (xmi_type == nullptr) {
-  //           std::cerr << "XMI Packaged Elements Require a type" <<
-  //           std::endl; return (Error);
-  //         }
-
-  //         std::cout << "Packaged Element: XMI Id: "
-  //                   << XMLString::transcode(xmi_id)
-  //                   << " XMI Type: " << XMLString::transcode(xmi_type)
-  //                   << std::endl;
-  //       } else {
-  //         std::cout << "Non-Packaged Element XMI Id: "
-  //                   << XMLString::transcode(xmi_id)
-  //                   << " XMI Type: " << XMLString::transcode(xmi_type)
-  //                   << std::endl;
-  //       }
-  //       break;
-  //     }
-  //     default:
-  //       std::cout << "Node Name: "
-  //                 << XMLString::transcode(node->getNodeName())
-  //                 << " Node Type: " << node->getNodeType() << std::endl;
-  //       break;
-  //   }
-  //   node = iterator->nextNode();
-  // }
-  // iterator->release();
-  // // DOMNamedNodeMap* attributes =  doc->getAttributes();
-  // // assert(attributes != nullptr);
-  // // for(size_t i = 0; i < attributes->getLength(); i++){
-  // //     DOMNode* node = attributes->item(i);
-  // //     assert(node != nullptr);
-  // // }
 };
 
 }  // namespace XMR
