@@ -41,12 +41,22 @@ PapyrusParser::PapyrusParser() {
   //                             Grammar::GrammarType::SchemaGrammarType,
   //                             true) != nullptr);
   parser_->setDoSchema(true);
+
+  idKey_ = XMLString::transcode("xmi:id");
+  typeKey_ = XMLString::transcode("xmi:type");
+  nameKey_ = XMLString::transcode("name");
+  visibilityKey_ = XMLString::transcode("visibility");
+  attributeTypeKey_ = XMLString::transcode("type");
+  hrefKey_ = XMLString::transcode("href");
+  paramKey_ = XMLString::transcode("ownedParameter");
 }
 
 // Destructor
 PapyrusParser::~PapyrusParser() {
   delete parser_;
   delete errHandler_;
+  XMLString::release(&idKey_);
+  XMLString::release(&typeKey_);
 
   XMLPlatformUtils::Terminate();
 }
@@ -117,10 +127,9 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
     return nullptr;
   }
   DOMElement* modelDomElement = static_cast<DOMElement*>(model);
-  char* modelName = XMLString::transcode(
-      modelDomElement->getAttribute(XMLString::transcode("name")));
-  char* modelId = XMLString::transcode(
-      modelDomElement->getAttribute(XMLString::transcode(idKey_)));
+  char* modelName =
+      XMLString::transcode(modelDomElement->getAttribute(nameKey_));
+  char* modelId = XMLString::transcode(modelDomElement->getAttribute(idKey_));
 
   ModelNode* modelNode = new ModelNode(modelName, modelId);
 
@@ -149,8 +158,7 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
       }
 
       DOMElement* domElement = static_cast<DOMElement*>(node);
-      char* type = XMLString::transcode(
-          domElement->getAttribute(XMLString::transcode(typeKey_)));
+      char* type = XMLString::transcode(domElement->getAttribute(typeKey_));
       if (type == nullptr) {
         cerr << "Model children nodes must have attributes." << endl;
         return nullptr;
@@ -181,18 +189,17 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
           break;
       }
       modelDomElement->removeChild(node)->release();
+      XMLString::release(&type);
     }
   }
-
+  cout << *modelNode;
   return modelNode;
 }
 
 Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
   cout << "Package" << endl;
-  char* packageName =
-      XMLString::transcode(package->getAttribute(XMLString::transcode("name")));
-  char* packageId =
-      XMLString::transcode(package->getAttribute(XMLString::transcode(idKey_)));
+  char* packageName = XMLString::transcode(package->getAttribute(nameKey_));
+  char* packageId = XMLString::transcode(package->getAttribute(idKey_));
 
   Package* packageNode = new Package(packageName, packageId);
 
@@ -220,8 +227,7 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
       }
 
       DOMElement* domElement = static_cast<DOMElement*>(node);
-      char* type = XMLString::transcode(
-          domElement->getAttribute(XMLString::transcode(typeKey_)));
+      char* type = XMLString::transcode(domElement->getAttribute(typeKey_));
       if (type == nullptr) {
         cerr << "Package children nodes must have attributes." << endl;
         return nullptr;
@@ -251,18 +257,18 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
           break;
       }
       package->removeChild(node)->release();
+      XMLString::release(&type);
     }
   }
+  cout << *packageNode;
   return packageNode;
 }
 
 ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
   cout << "Module" << endl;
-  char* moduleName =
-      XMLString::transcode(mod->getAttribute(XMLString::transcode("name")));
-  char* moduleId =
-      XMLString::transcode(mod->getAttribute(XMLString::transcode(idKey_)));
-  const XMLCh* visAtt = mod->getAttribute(XMLString::transcode("visibility"));
+  char* moduleName = XMLString::transcode(mod->getAttribute(nameKey_));
+  char* moduleId = XMLString::transcode(mod->getAttribute(idKey_));
+  const XMLCh* visAtt = mod->getAttribute(visibilityKey_);
 
   char* visibility;
   if (visAtt != nullptr) {
@@ -282,6 +288,7 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       moduleNode = new ModuleNode(moduleName, moduleId);
     }
   }
+  XMLString::release(&visibility);
 
   // Grab children
   DOMNodeList* nodes = mod->getChildNodes();
@@ -307,8 +314,7 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       }
 
       DOMElement* domElement = static_cast<DOMElement*>(node);
-      char* type = XMLString::transcode(
-          domElement->getAttribute(XMLString::transcode(typeKey_)));
+      char* type = XMLString::transcode(domElement->getAttribute(typeKey_));
       if (type == nullptr) {
         cerr << "Module children nodes must have attributes." << endl;
         return nullptr;
@@ -338,20 +344,18 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
           break;
       }
       mod->removeChild(node)->release();
+      XMLString::release(&type);
     }
   }
-
+  cout << *moduleNode;
   return moduleNode;
 }
 
 Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
   cout << "Operator" << endl;
-  char* operatorName =
-      XMLString::transcode(op->getAttribute(XMLString::transcode("name")));
-  char* operatorId =
-      XMLString::transcode(op->getAttribute(XMLString::transcode(idKey_)));
-  char* visibility = XMLString::transcode(
-      op->getAttribute(XMLString::transcode("visibility")));
+  char* operatorName = XMLString::transcode(op->getAttribute(nameKey_));
+  char* operatorId = XMLString::transcode(op->getAttribute(idKey_));
+  char* visibility = XMLString::transcode(op->getAttribute(visibilityKey_));
   Operator* operatorNode;
   if (visibility == nullptr)
     operatorNode = new Operator(operatorName, operatorId);
@@ -363,39 +367,95 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
     if (strcmp(visibility, "private") == 0) {
       operatorNode =
           new Operator(operatorName, operatorId, Visibility::PRIVATE);
+    } else {
+      operatorNode = new Operator(operatorName, operatorId);
     }
   }
+  XMLString::release(&visibility);
 
+  DOMNodeList* params = op->getElementsByTagName(paramKey_);
+  if (params->getLength() != 0) {
+    XMLCh* directionKey = XMLString::transcode("direction");
+    for (size_t i = 0; i < params->getLength(); i++) {
+      DOMElement* param = (DOMElement*)params->item(i);
+      char* direction = XMLString::transcode(param->getAttribute(directionKey));
+      char* id = XMLString::transcode(param->getAttribute(idKey_));
+      char* name = XMLString::transcode(param->getAttribute(nameKey_));
+      Type* typeNode = nullptr;
+      Param* paramNode = nullptr;
+      if (!param->hasAttribute(attributeTypeKey_)) {
+        // primitive type
+        DOMElement* typeDomElement =
+            (DOMElement*)param->getElementsByTagName(attributeTypeKey_)
+                ->item(0);
+        typeNode = new Type(
+            XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
+      } else {
+        typeNode = new Type(
+            XMLString::transcode(param->getAttribute(attributeTypeKey_)));
+      }
+      if (std::strcmp(direction, "return") == 0) {
+        operatorNode->addReturnType(typeNode);
+
+      } else if (std::strcmp(direction, "out") == 0) {
+        // reference/pointer
+        paramNode = new Param(name, id, typeNode, Direction::OUT);
+        operatorNode->addParam(paramNode);
+      } else {
+        // By copy
+        paramNode = new Param(name, id, typeNode);
+        operatorNode->addParam(paramNode);
+      }
+    }
+    XMLString::release(&directionKey);
+  }
+
+  cout << *operatorNode;
   return operatorNode;
 }
 
 Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
   cout << "Attribute" << endl;
-  char* attributeName = XMLString::transcode(
-      attribute->getAttribute(XMLString::transcode("name")));
-  char* attributeId = XMLString::transcode(
-      attribute->getAttribute(XMLString::transcode(idKey_)));
-  char* visibility = XMLString::transcode(
-      attribute->getAttribute(XMLString::transcode("visibility")));
-  char* type = "TODO";
+  char* attributeName = XMLString::transcode(attribute->getAttribute(nameKey_));
+  char* attributeId = XMLString::transcode(attribute->getAttribute(idKey_));
+  char* visibility =
+      XMLString::transcode(attribute->getAttribute(visibilityKey_));
+  char* type = XMLString::transcode(attribute->getAttribute(attributeTypeKey_));
+  Type* typeNode = nullptr;
+  // If fail means primitive type
+  if (!attribute->hasAttribute(attributeTypeKey_)) {
+    // primitive type
+    DOMElement* typeDomElement =
+        (DOMElement*)attribute->getElementsByTagName(attributeTypeKey_)
+            ->item(0);
+    typeNode = new Type(
+        XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
+
+  } else {
+    typeNode = new Type(
+        XMLString::transcode(attribute->getAttribute(attributeTypeKey_)));
+  }
 
   Attribute* attributeNode;
   if (visibility == nullptr)
-    attributeNode = new Attribute(attributeName, attributeId, type);
+    attributeNode = new Attribute(attributeName, attributeId, typeNode);
   else {
     // Double check its private first, don't need to assign public as
     // public
     // is set by default.
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      attributeNode =
-          new Attribute(attributeName, attributeId, type, Visibility::PRIVATE);
+      attributeNode = new Attribute(attributeName, attributeId, typeNode,
+                                    Visibility::PRIVATE);
+    } else {
+      attributeNode = new Attribute(attributeName, attributeId, typeNode);
     }
   }
-
+  XMLString::release(&visibility);
+  cout << *attributeNode;
   return attributeNode;
 }
+extern "C" IParser* create_parser() { return new PapyrusParser; }
+extern "C" void destroy_parser(IParser* parser) { delete parser; }
 
-extern "C" IParser* create() { return new PapyrusParser; }
-extern "C" void destroy(IParser* parser) { delete parser; }
 }  // namespace XMR

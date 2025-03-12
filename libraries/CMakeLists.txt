@@ -1,2 +1,6 @@
-add_library(parser ./parsers/PapyrusParser.cpp)
-set_target_properties(parser PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
+add_library(papyrus SHARED ./parsers/PapyrusParser.cpp)
+set_target_properties(papyrus PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/parsers/)
+set_target_properties(papyrus PROPERTIES OUTPUT_NAME "papyrus")
+add_library(cpp SHARED ./generators/CPPGenerator.cpp)
+set_target_properties(cpp PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/generators/)
+set_target_properties(cpp PROPERTIES OUTPUT_NAME "cpp")
