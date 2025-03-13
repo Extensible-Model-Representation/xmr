@@ -19,10 +19,10 @@ using namespace std;
 
 int main(int argc, char* argv[]) {
   // Below is the argument parser. Currently takes arg -f for filename
-  char* file_name = NULL;
-  char* parser_file = NULL;
-  char* generator_file = NULL;
-  char* out_file_name = NULL;
+  std::string file_name;
+  std::string parser_file;
+  std::string generator_file;
+  std::string out_file_name;
   int c;
 
   opterr = 0;
@@ -60,24 +60,24 @@ int main(int argc, char* argv[]) {
   for (int index = optind; index < argc; ++index) {
     cout << "Non-option argument " << argv[index] << "\n" << endl;
   }
-  if (file_name == NULL) {
+  if (file_name.empty()) {
     cerr << "Must specify an input file. Usage: -f <filename>" << endl;
     abort();
   }
-  if (parser_file == NULL) {
+  if (parser_file.empty()) {
     std::cout << "Using default papyrus parser" << std::endl;
     parser_file = "./parsers/libPapyrusParser.so";
   }
-  if (generator_file == NULL) {
+  if (generator_file.empty()) {
     std::cout << "Using default cpp generator" << std::endl;
     generator_file = "./generators/libCPPGenerator.so";
   }
-  if (out_file_name == NULL) {
+  if (out_file_name.empty()) {
     std::cout << "Default output file name to a.cpp" << std::endl;
     out_file_name = "a.cpp";
   }
 
-  void* parser_handle = dlopen(parser_file, RTLD_LAZY);
+  void* parser_handle = dlopen(parser_file.c_str(), RTLD_LAZY);
   if (parser_handle == NULL) {
     cerr << "Could not load parser .so file. Error: " << dlerror() << endl;
     abort();
@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
   IParser* parser = (IParser*)parser_create();  // create parser object
 
   // Parsing the document
-  if (!parser->setInputFile(file_name)) {
+  if (!parser->setInputFile(file_name.c_str())) {
     cerr << "Failed to set input file" << file_name << endl;
     parser_destroy(parser);
     dlclose(parser_handle);
@@ -116,7 +116,7 @@ int main(int argc, char* argv[]) {
   dlclose(parser_handle);
   // Done parsing the document
 
-  void* generator_handle = dlopen(generator_file, RTLD_LAZY);
+  void* generator_handle = dlopen(generator_file.c_str(), RTLD_LAZY);
   if (generator_handle == NULL) {
     cerr << "Could not load generator .so file. Error: " << dlerror() << endl;
     abort();

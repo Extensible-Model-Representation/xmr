@@ -61,7 +61,7 @@ PapyrusParser::~PapyrusParser() {
   XMLPlatformUtils::Terminate();
 }
 
-bool PapyrusParser::setInputFile(char* fileName) {
+bool PapyrusParser::setInputFile(const char* fileName) {
   if (!filesystem::exists(fileName)) return false;
 
   try {
@@ -349,7 +349,6 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
 }
 
 Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
-  cout << "Operator" << endl;
   char* operatorName = XMLString::transcode(op->getAttribute(nameKey_));
   char* operatorId = XMLString::transcode(op->getAttribute(idKey_));
   char* visibility = XMLString::transcode(op->getAttribute(visibilityKey_));

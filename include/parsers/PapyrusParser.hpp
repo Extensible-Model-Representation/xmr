@@ -76,7 +76,7 @@ class PapyrusParser : public IParser {
   // Destructor
   ~PapyrusParser();
 
-  bool setInputFile(char* fileName) final;
+  bool setInputFile(const char* fileName) final;
 
   // Main parse function
   ModelNode* parse() final;
