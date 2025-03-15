@@ -26,7 +26,7 @@ class IParser {
    * @param[in] fileName: Input file name for this parser to parse from
    * @returns true if file was able to be opened, false otherwise
    */
-  virtual bool setInputFile(char* fileName) = 0;
+  virtual bool setInputFile(const char* fileName) = 0;
 };
 
 }  // namespace XMR

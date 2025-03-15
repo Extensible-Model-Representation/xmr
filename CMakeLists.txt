@@ -16,22 +16,38 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(xerces-c)
 
-FetchContent_Declare(
-    googletest
-    GIT_REPOSITORY https://github.com/google/googletest.git
-    GIT_TAG e39786088138f2749d64e9e90e0f9902daa77c40
-    FIND_PACKAGE_ARGS NAMES GTest
-)
+#FetchContent_Declare(
+#    googletest
+#    GIT_REPOSITORY https://github.com/google/googletest.git
+#    GIT_TAG e39786088138f2749d64e9e90e0f9902daa77c40
+#    FIND_PACKAGE_ARGS NAMES GTest
+#)
 
-FetchContent_MakeAvailable(googletest)
+#FetchContent_MakeAvailable(googletest)
 
 set(${BINARY_DIR} build/bin/)
 set(XERCESC_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/build/_deps/xerces-c-src/src ${CMAKE_CURRENT_LIST_DIR}/build/_deps/xerces-c-build/src)
 
 FILE(GLOB_RECURSE SRCS ${CMAKE_CURRENT_LIST_DIR}/src/*.cpp)
+message("${SRCS}")
 FILE(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_LIST_DIR}/include/*.hpp)
+FILE(GLOB_RECURSE PAPYRUS_PARSER ${CMAKE_CURRENT_LIST_DIR}/libraries/parsers/PapyrusParser.cpp)
+FILE(GLOB_RECURSE CPP_GENERATOR ${CMAKE_CURRENT_LIST_DIR}/libraries/generators/CPPGenerator.cpp)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR}/include)
-add_executable(${PROJECT_NAME} ${SRCS} ${HEADERS} ${PARSER_FILES})
+add_executable(${PROJECT_NAME} ${SRCS} ${HEADERS} ${PAPYRUS_PARSER} ${CPP_GENERATOR})
 target_link_libraries(${PROJECT_NAME} PUBLIC xerces-c)
 target_include_directories(${PROJECT_NAME} PUBLIC ${XERCESC_INCLUDE})
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/libraries)
+
+# foreach(SRC ${PARSER_FILES})
+#     get_filename_component(PARSERLIB ${SRC} NAME_WE)
+#     find_library(PARSE NAMES ${PARSERLIB} HINTS ${CMAKE_BINARY_DIR}/parsers)
+#     target_link_libraries(${PROJECT_NAME} PUBLIC ${PARSE})
+# endforeach()
+
+# foreach(SRC ${GENERATOR_FILES})
+#     get_filename_component(GENERATORLIB ${SRC} NAME_WE)
+#     find_library(GEN NAMES ${GENERATORLIB} HINTS ${CMAKE_BINARY_DIR}/generators)
+#     target_link_libraries(${PROJECT_NAME} PUBLIC ${GEN})
+# endforeach()
