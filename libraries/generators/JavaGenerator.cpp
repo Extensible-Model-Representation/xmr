@@ -153,7 +153,7 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
   std::vector<char*> deps = module->getDependencies();
   for (size_t i = 0; i < deps.size(); i++) {
     if (!generatedSymbols[deps[i]] &&
-        classImports[idNameMap[deps[i]]] != classImports[module->id_]) {
+        classImports[deps[i]] != classImports[module->id_]) {
       workingFile << "import " << classImports[deps[i]] << ";" << endl;
     }
   }
