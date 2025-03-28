@@ -13,17 +13,17 @@ static fstream workingFile;  // keeps track of file we are currently in
 static bool mainGenerated =
     false;  // generate main once, currently in first module created
 static unordered_map<string, string>
-    packagePath;  // tracks the directory per package (key, val)=(package name,
+    packagePath;  // tracks the directory per package (key, val)=(package id,
                   // path)
 static unordered_map<string, string>
-    packageName;  // tracks the java name per package (key, val)=(package name,
+    packageName;  // tracks the java name per package (key, val)=(package id,
                   // java name)
 static unordered_map<string, string>
     classImports;  // tracks the package name of each class (key, val) =
-                   // (class name, import name)
+                   // (class id, import name)
 static unordered_map<string, string>
     classPaths;  // tracks the file location of each class (key, val) =
-                 // (class name, file path)
+                 // (class id, file path)
 static unordered_set<std::string> noNoNames =
     {};  // empty for now, left for future use if needed
 
@@ -153,9 +153,8 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
   std::vector<char*> deps = module->getDependencies();
   for (size_t i = 0; i < deps.size(); i++) {
     if (!generatedSymbols[deps[i]] &&
-        classImports[idNameMap[deps[i]]] != classImports[module->name_]) {
-      workingFile << "import " << classImports[idNameMap[deps[i]]] << ";"
-                  << endl;
+        classImports[idNameMap[deps[i]]] != classImports[module->id_]) {
+      workingFile << "import " << classImports[deps[i]] << ";" << endl;
     }
   }
 
@@ -172,7 +171,7 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
     result =
         generateAttribute(workingFile, module->privateAttributes_[i]) && result;
   }
-  workingFile << "// operators " << endl;
+  workingFile << "// operators" << endl;
   for (size_t i = 0; i < module->privateOperators_.size(); i++) {
     result =
         generateOperator(workingFile, module->privateOperators_[i]) && result;
@@ -184,7 +183,7 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
         generateAttribute(workingFile, module->publicAttributes_[i]) && result;
   }
 
-  workingFile << "// operators " << endl;
+  workingFile << "// operators" << endl;
   for (size_t i = 0; i < module->publicOperators_.size(); i++) {
     result =
         generateOperator(workingFile, module->publicOperators_[i]) && result;
@@ -216,13 +215,13 @@ bool generatePackage(ostream& os, Package* package) {
   if (workingFile.is_open()) {
     workingFile.close();
   }
-  workingFile.open(classPaths[package->modules_[0]->name_], ios::app);
+  workingFile.open(classPaths[package->modules_[0]->id_], ios::app);
   for (size_t i = 0; i < package->modules_.size(); i++) {
     if (package->modules_[i]->visibility_ == Visibility::PUBLIC) {
       if (workingFile.is_open()) {
         workingFile.close();
       }
-      workingFile.open(classPaths[package->modules_[i]->name_], ios::app);
+      workingFile.open(classPaths[package->modules_[i]->id_], ios::app);
     }
     result = generateModule(os, package->modules_[i]) && result;
   }
@@ -239,16 +238,16 @@ static void genModuleLocations(vector<ModuleNode*> modules, string package_path,
   string lastPublic = "";
   for (size_t i = 0; i < modules.size(); ++i) {
     if (lastPublic != "") {
-      classImports[modules[i]->name_] = package_name + "." + lastPublic;
-      classPaths[modules[i]->name_] = package_path + "/" + lastPublic + ".java";
+      classImports[modules[i]->id_] = package_name + "." + lastPublic;
+      classPaths[modules[i]->id_] = package_path + "/" + lastPublic + ".java";
     }
 
     if (modules[i]->visibility_ == Visibility::PUBLIC) {
       if (firstPublic == -1) {
         firstPublic = i;
       }
-      classImports[modules[i]->name_] = package_name + "." + modules[i]->name_;
-      classPaths[modules[i]->name_] =
+      classImports[modules[i]->id_] = package_name + "." + modules[i]->name_;
+      classPaths[modules[i]->id_] =
           package_path + "/" + modules[i]->name_ + ".java";
       workingFile.open(package_path + "/" + modules[i]->name_ + ".java",
                        fstream::out);
@@ -267,33 +266,34 @@ static void genModuleLocations(vector<ModuleNode*> modules, string package_path,
                 << endl;  // need to declare package in src files
     workingFile.close();
     for (size_t i = 0; i < modules.size(); ++i) {
-      classImports[modules[i]->name_] = package_name + "." + lastPublic;
-      classPaths[modules[i]->name_] = package_path + "/" + lastPublic + ".java";
+      classImports[modules[i]->id_] = package_name + "." + lastPublic;
+      classPaths[modules[i]->id_] = package_path + "/" + lastPublic + ".java";
     }
   } else if (modules.size() > 0) {
     lastPublic = modules[firstPublic]->name_;
     for (size_t i = 0; i < firstPublic; ++i) {
-      classImports[modules[i]->name_] = package_name + "." + lastPublic;
-      classPaths[modules[i]->name_] = package_path + "/" + lastPublic + ".java";
+      classImports[modules[i]->id_] = package_name + "." + lastPublic;
+      classPaths[modules[i]->id_] = package_path + "/" + lastPublic + ".java";
     }
   }
 }
 
-// utility function to recursively generate the package names. Used in first
-// pass
+// utility function to recursively generate the package names, also makes
+// required directories. Used in first pass
 static void createPackageNames(Package* package, string relative_path,
                                string relative_name) {
   // compute our relative path in format for java package names
   string current_name = relative_name + "." + package->name_;
   string current_path = relative_path + "/" + package->name_;
-  packageName[package->name_] = current_name;
-  packagePath[package->name_] = current_path;
+  packageName[package->id_] = current_name;
+  packagePath[package->id_] = current_path;
+  filesystem::create_directory(current_path);
+
+  genModuleLocations(package->modules_, current_path, current_name);
 
   if (package->packages_.size() == 0) {
     return;
   }
-
-  genModuleLocations(package->modules_, current_path, current_name);
 
   for (size_t i = 0; i < package->packages_.size(); ++i) {
     createPackageNames(package->packages_[i], current_path, current_name);
@@ -320,13 +320,13 @@ bool JavaGenerator::generate(std::ostream& os, ModelNode* root) {
   }
 
   // stream should be closed at this point so do not check
-  workingFile.open(classPaths[root->modules_[0]->name_], ios::app);
+  workingFile.open(classPaths[root->modules_[0]->id_], ios::app);
   for (size_t i = 0; i < root->modules_.size(); i++) {
     if (root->modules_[i]->visibility_ == Visibility::PUBLIC) {
       if (workingFile.is_open()) {
         workingFile.close();
       }
-      workingFile.open(classPaths[root->modules_[i]->name_], ios::app);
+      workingFile.open(classPaths[root->modules_[i]->id_], ios::app);
     }
     result = generateModule(os, root->modules_[i]) && result;
   }
