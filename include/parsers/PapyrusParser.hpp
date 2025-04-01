@@ -64,8 +64,10 @@ class PapyrusParser : public IParser {
   std::unordered_map<std::string, std::string> idNameMap_;
 
   ModelNode* parseModel(xercesc::DOMNode* model);
-  Package* parsePackage(xercesc::DOMElement* package);
-  ModuleNode* parseModule(xercesc::DOMElement* module);
+  Package* parsePackage(xercesc::DOMElement* package,
+                        std::string qualifiedPath);
+  ModuleNode* parseModule(xercesc::DOMElement* module,
+                          std::string qualifiedPath);
   Operator* parseOperator(xercesc::DOMElement* op);
   Attribute* parseAttribute(xercesc::DOMElement* attribute);
 

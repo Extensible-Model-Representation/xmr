@@ -133,6 +133,7 @@ class Attribute : public Node {
 class ModuleNode : public Node {
  public:
   char* name_ = nullptr;
+  std::string qualifiedName_;  // saves in package.package.module format
   char* id_ = nullptr;
   Visibility visibility_;
 
@@ -144,8 +145,12 @@ class ModuleNode : public Node {
 
   //!@todo: Do we want to default visibility if not set? Will it never be not
   //! set in the metadata?
-  ModuleNode(char* name, char* id, Visibility visibility = Visibility::PUBLIC)
-      : name_(name), id_(id), visibility_(visibility) {}
+  ModuleNode(char* name, std::string qualifiedName, char* id,
+             Visibility visibility = Visibility::PUBLIC)
+      : name_(name),
+        qualifiedName_(qualifiedName),
+        id_(id),
+        visibility_(visibility) {}
 
   std::vector<char*> getDependencies() {
     return std::vector<char*>(dependencyList_.begin(), dependencyList_.end());
@@ -192,12 +197,14 @@ class ModuleNode : public Node {
 class Package : public Node {
  public:
   char* name_ = nullptr;
+  std::string qualifiedName_;  // saves in package.package.module format
   char* id_ = nullptr;
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
   std::vector<Relationship*> relationships_;
 
-  Package(char* name, char* id) : name_(name), id_(id) {}
+  Package(char* name, std::string qualifiedName, char* id)
+      : name_(name), qualifiedName_(qualifiedName), id_(id) {}
 
   inline void addPackage(Package* package) { packages_.push_back(package); }
 
@@ -232,7 +239,7 @@ class ModelNode : public Node {
   // used to lookup type names by xmi id
   std::unordered_map<std::string, std::string> idNameMap_;
 
-  ModelNode(char* name, char* id) : name_(name), id_(id) {}
+  ModelNode(char* name, char* qualifiedName, char* id) : name_(name), id_(id) {}
 
   inline void addPackageImport(PackageImport* packageImport) {
     packageImports_.push_back(packageImport);

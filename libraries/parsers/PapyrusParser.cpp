@@ -128,9 +128,11 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
   DOMElement* modelDomElement = static_cast<DOMElement*>(model);
   char* modelName =
       XMLString::transcode(modelDomElement->getAttribute(nameKey_));
+  string qualifiedName =
+      string(modelName);  // global package is model name for now
   char* modelId = XMLString::transcode(modelDomElement->getAttribute(idKey_));
 
-  ModelNode* modelNode = new ModelNode(modelName, modelId);
+  ModelNode* modelNode = new ModelNode(modelName, modelName, modelId);
 
   // Grab children
   DOMNodeList* nodes = modelDomElement->getChildNodes();
@@ -165,7 +167,7 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
 
       switch (umlStringIdMap_[type]) {
         case UmlType::CLASS: {
-          ModuleNode* moduleNode = parseModule(domElement);
+          ModuleNode* moduleNode = parseModule(domElement, qualifiedName);
           if (moduleNode == nullptr) {
             cerr << "Failed to parse module" << endl;
             return nullptr;
@@ -175,7 +177,7 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
 
         } break;
         case UmlType::PACKAGE: {
-          Package* packageNode = parsePackage(domElement);
+          Package* packageNode = parsePackage(domElement, qualifiedName);
           if (packageNode == nullptr) {
             cerr << "Failed to parse package" << endl;
             return nullptr;
@@ -196,11 +198,13 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
   return modelNode;
 }
 
-Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
+Package* PapyrusParser::parsePackage(xercesc::DOMElement* package,
+                                     string qualifiedPath) {
   char* packageName = XMLString::transcode(package->getAttribute(nameKey_));
+  string qualifiedName = string(qualifiedPath) + "." + packageName;
   char* packageId = XMLString::transcode(package->getAttribute(idKey_));
 
-  Package* packageNode = new Package(packageName, packageId);
+  Package* packageNode = new Package(packageName, qualifiedName, packageId);
 
   // Grab children
   DOMNodeList* nodes = package->getChildNodes();
@@ -234,7 +238,7 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
 
       switch (umlStringIdMap_[type]) {
         case UmlType::CLASS: {
-          ModuleNode* moduleNode = parseModule(domElement);
+          ModuleNode* moduleNode = parseModule(domElement, qualifiedName);
           if (moduleNode == nullptr) {
             cerr << "Failed to parse module" << endl;
             return nullptr;
@@ -243,7 +247,7 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
           packageNode->addModule(moduleNode);
         } break;
         case UmlType::PACKAGE: {
-          Package* packageNode = parsePackage(domElement);
+          Package* packageNode = parsePackage(domElement, qualifiedName);
           if (packageNode == nullptr) {
             cerr << "Failed to parse package" << endl;
             return nullptr;
@@ -263,8 +267,10 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
   return packageNode;
 }
 
-ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
+ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod,
+                                       string qualifiedPath) {
   char* moduleName = XMLString::transcode(mod->getAttribute(nameKey_));
+  string qualifiedName = string(qualifiedPath) + string(".") + moduleName;
   char* moduleId = XMLString::transcode(mod->getAttribute(idKey_));
   const XMLCh* visAtt = mod->getAttribute(visibilityKey_);
 
@@ -276,14 +282,15 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
   ModuleNode* moduleNode;
 
   if (visibility == nullptr)
-    moduleNode = new ModuleNode(moduleName, moduleId);
+    moduleNode = new ModuleNode(moduleName, qualifiedName, moduleId);
   else {
     // Double check its private first
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      moduleNode = new ModuleNode(moduleName, moduleId, Visibility::PRIVATE);
+      moduleNode = new ModuleNode(moduleName, qualifiedName, moduleId,
+                                  Visibility::PRIVATE);
     } else {
-      moduleNode = new ModuleNode(moduleName, moduleId);
+      moduleNode = new ModuleNode(moduleName, qualifiedName, moduleId);
     }
   }
   XMLString::release(&visibility);
