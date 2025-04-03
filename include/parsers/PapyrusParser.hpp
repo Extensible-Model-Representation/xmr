@@ -6,6 +6,7 @@
  ***********************************************************/
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "parsers/IParser.hpp"
 #include "xercesc/dom/DOMElement.hpp"
@@ -62,12 +63,11 @@ class PapyrusParser : public IParser {
   // used to store XMI id to name mapping to be used when
   // user defined modules are also used for attributes and param types.
   std::unordered_map<std::string, std::string> idNameMap_;
+  std::vector<std::string> currentPath_;
 
   ModelNode* parseModel(xercesc::DOMNode* model);
-  Package* parsePackage(xercesc::DOMElement* package,
-                        std::string qualifiedPath);
-  ModuleNode* parseModule(xercesc::DOMElement* module,
-                          std::string qualifiedPath);
+  Package* parsePackage(xercesc::DOMElement* package);
+  ModuleNode* parseModule(xercesc::DOMElement* module);
   Operator* parseOperator(xercesc::DOMElement* op);
   Attribute* parseAttribute(xercesc::DOMElement* attribute);
 
