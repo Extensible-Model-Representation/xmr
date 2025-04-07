@@ -212,17 +212,11 @@ bool generatePackage(ostream& os, Package* package) {
     result = generatePackage(os, package->packages_[i]) && result;
   }
 
-  if (workingFile.is_open()) {
-    workingFile.close();
-  }
-  workingFile.open(classPaths[package->modules_[0]->id_], ios::app);
   for (size_t i = 0; i < package->modules_.size(); i++) {
-    if (package->modules_[i]->visibility_ == Visibility::PUBLIC) {
-      if (workingFile.is_open()) {
-        workingFile.close();
-      }
-      workingFile.open(classPaths[package->modules_[i]->id_], ios::app);
+    if (workingFile.is_open()) {
+      workingFile.close();
     }
+    workingFile.open(classPaths[package->modules_[i]->id_], ios::app);
     result = generateModule(os, package->modules_[i]) && result;
   }
 
@@ -234,47 +228,15 @@ bool generatePackage(ostream& os, Package* package) {
 static void genModuleLocations(vector<ModuleNode*> modules, string package_path,
                                string package_name) {
   // java has public/private/abstract/none(package private)
-  int firstPublic = -1;
-  string lastPublic = "";
   for (size_t i = 0; i < modules.size(); ++i) {
-    if (lastPublic != "") {
-      classImports[modules[i]->id_] = package_name + "." + lastPublic;
-      classPaths[modules[i]->id_] = package_path + "/" + lastPublic + ".java";
-    }
-
-    if (modules[i]->visibility_ == Visibility::PUBLIC) {
-      if (firstPublic == -1) {
-        firstPublic = i;
-      }
-      classImports[modules[i]->id_] = package_name + "." + modules[i]->name_;
-      classPaths[modules[i]->id_] =
-          package_path + "/" + modules[i]->name_ + ".java";
-      workingFile.open(package_path + "/" + modules[i]->name_ + ".java",
-                       fstream::out);
-      workingFile << "package " << package_name << ";" << endl
-                  << endl;  // need to declare package in src files
-      workingFile.close();
-      lastPublic = modules[i]->name_;
-    }
-  }
-  // check if there ever was a public module, if not we just pick a name
-  if (firstPublic == -1 && modules.size() > 0) {
-    lastPublic = modules[0]->name_;
-    workingFile.open(package_path + "/" + modules[0]->name_ + ".java",
+    classImports[modules[i]->id_] = package_name + "." + modules[i]->name_;
+    classPaths[modules[i]->id_] =
+        package_path + "/" + modules[i]->name_ + ".java";
+    workingFile.open(package_path + "/" + modules[i]->name_ + ".java",
                      fstream::out);
     workingFile << "package " << package_name << ";" << endl
                 << endl;  // need to declare package in src files
     workingFile.close();
-    for (size_t i = 0; i < modules.size(); ++i) {
-      classImports[modules[i]->id_] = package_name + "." + lastPublic;
-      classPaths[modules[i]->id_] = package_path + "/" + lastPublic + ".java";
-    }
-  } else if (modules.size() > 0) {
-    lastPublic = modules[firstPublic]->name_;
-    for (size_t i = 0; i < firstPublic; ++i) {
-      classImports[modules[i]->id_] = package_name + "." + lastPublic;
-      classPaths[modules[i]->id_] = package_path + "/" + lastPublic + ".java";
-    }
   }
 }
 
@@ -319,15 +281,11 @@ bool JavaGenerator::generate(std::ostream& os, ModelNode* root) {
                        modelName);  // generate the names
   }
 
-  // stream should be closed at this point so do not check
-  workingFile.open(classPaths[root->modules_[0]->id_], ios::app);
   for (size_t i = 0; i < root->modules_.size(); i++) {
-    if (root->modules_[i]->visibility_ == Visibility::PUBLIC) {
-      if (workingFile.is_open()) {
-        workingFile.close();
-      }
-      workingFile.open(classPaths[root->modules_[i]->id_], ios::app);
+    if (workingFile.is_open()) {
+      workingFile.close();
     }
+    workingFile.open(classPaths[root->modules_[i]->id_], ios::app);
     result = generateModule(os, root->modules_[i]) && result;
   }
 
