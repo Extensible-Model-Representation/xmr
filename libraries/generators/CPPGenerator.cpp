@@ -12,7 +12,7 @@
 using namespace std;
 
 static unordered_map<char*, bool> generatedSymbols;
-static unordered_map<std::string, std::string> idNameMap;
+static unordered_map<std::string, std::vector<std::string>> idNameMap;
 static unordered_set<std::string> noNoNames = {"delete", "new"};
 namespace XMR {
 
@@ -43,7 +43,11 @@ bool generateOperator(std::ostream& os, Operator* op) {
 
       } else {
         // lookup type name of id
-        os << idNameMap[op->returnType_->type_];
+        string qualifiedPath;
+        for (auto& subPath : idNameMap[op->returnType_->type_]) {
+          qualifiedPath = qualifiedPath + "::" + subPath;
+        }
+        os << qualifiedPath;
         if (!generatedSymbols[op->returnType_->type_]) {
           // inject a pointer as usage of incomplete type in class def not
           // permissible in C++
@@ -73,7 +77,11 @@ bool generateOperator(std::ostream& os, Operator* op) {
 
         } else {
           // lookup type name of id
-          os << idNameMap[op->params_[i]->type_->type_];
+          string qualifiedName;
+          for (auto& subPath : idNameMap[op->params_[i]->type_->type_]) {
+            qualifiedName = qualifiedName + "::" + subPath;
+          }
+          os << qualifiedName;
           if (!generatedSymbols[op->params_[i]->type_->type_]) {
             // inject a pointer as usage of incomplete type in class def not
             // permissible in C++
@@ -100,7 +108,12 @@ bool generateOperator(std::ostream& os, Operator* op) {
 
       } else {
         // lookup type name of id
-        os << idNameMap[op->params_[op->params_.size() - 1]->type_->type_];
+        std::string qualifiedName;
+        for (auto& subPath :
+             idNameMap[op->params_[op->params_.size() - 1]->type_->type_]) {
+          qualifiedName = qualifiedName + "::" + subPath;
+        }
+        os << qualifiedName;
         if (!generatedSymbols[op->params_[op->params_.size() - 1]
                                   ->type_->type_]) {
           // inject a pointer as usage of incomplete type in class def not
@@ -135,7 +148,11 @@ bool generateAttribute(std::ostream& os, Attribute* attribute) {
 
   } else {
     // lookup type name of id
-    os << idNameMap[attribute->type_->type_];
+    std::string qualifiedName;
+    for (auto& subPath : idNameMap[attribute->type_->type_]) {
+      qualifiedName = qualifiedName + "::" + subPath;
+    }
+    os << qualifiedName;
     if (!generatedSymbols[attribute->type_->type_]) {
       // inject a pointer as usage of incomplete type in class def not
       // permissible in C++
@@ -155,7 +172,12 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
   std::vector<char*> deps = module->getDependencies();
   for (size_t i = 0; i < deps.size(); i++) {
     if (!generatedSymbols[deps[i]]) {
-      os << "class " << idNameMap[deps[i]] << ";" << endl;
+      os << "class ";
+      std::string qualifiedName;
+      for (auto& subPath : idNameMap[deps[i]]) {
+        qualifiedName = qualifiedName + "::" + subPath;
+      }
+      os << qualifiedName << ";" << endl;
     }
   }
 

@@ -129,8 +129,8 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
   char* modelName =
       XMLString::transcode(modelDomElement->getAttribute(nameKey_));
   char* modelId = XMLString::transcode(modelDomElement->getAttribute(idKey_));
-
-  ModelNode* modelNode = new ModelNode(modelName, modelId);
+  currentScope_.push_back(modelName);
+  ModelNode* modelNode = new ModelNode(modelName, modelId, currentScope_);
 
   // Grab children
   DOMNodeList* nodes = modelDomElement->getChildNodes();
@@ -171,7 +171,11 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
             return nullptr;
           }
           modelNode->addModule(moduleNode);
-          idNameMap_[moduleNode->id_] = moduleNode->name_;
+          for (auto& path : moduleNode->fullyQualified_) {
+            cout << path << " " << endl;
+          }
+
+          idNameMap_[moduleNode->id_] = moduleNode->fullyQualified_;
 
         } break;
         case UmlType::PACKAGE: {
@@ -193,14 +197,16 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
     }
   }
   modelNode->idNameMap_ = this->idNameMap_;
+  currentScope_.pop_back();
   return modelNode;
 }
 
+//
 Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
   char* packageName = XMLString::transcode(package->getAttribute(nameKey_));
   char* packageId = XMLString::transcode(package->getAttribute(idKey_));
-
-  Package* packageNode = new Package(packageName, packageId);
+  currentScope_.push_back(packageName);
+  Package* packageNode = new Package(packageName, packageId, currentScope_);
 
   // Grab children
   DOMNodeList* nodes = package->getChildNodes();
@@ -239,7 +245,10 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
             cerr << "Failed to parse module" << endl;
             return nullptr;
           }
-          idNameMap_[moduleNode->id_] = moduleNode->name_;
+          for (auto& path : moduleNode->fullyQualified_) {
+            cout << path << " " << endl;
+          }
+          idNameMap_[moduleNode->id_] = moduleNode->fullyQualified_;
           packageNode->addModule(moduleNode);
         } break;
         case UmlType::PACKAGE: {
@@ -260,6 +269,7 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
       XMLString::release(&type);
     }
   }
+  currentScope_.pop_back();
   return packageNode;
 }
 
@@ -267,23 +277,23 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
   char* moduleName = XMLString::transcode(mod->getAttribute(nameKey_));
   char* moduleId = XMLString::transcode(mod->getAttribute(idKey_));
   const XMLCh* visAtt = mod->getAttribute(visibilityKey_);
-
   char* visibility;
   if (visAtt != nullptr) {
     visibility = XMLString::transcode(visAtt);
   }
-
+  currentScope_.push_back(moduleName);
   ModuleNode* moduleNode;
 
   if (visibility == nullptr)
-    moduleNode = new ModuleNode(moduleName, moduleId);
+    moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
   else {
     // Double check its private first
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      moduleNode = new ModuleNode(moduleName, moduleId, Visibility::PRIVATE);
+      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_,
+                                  Visibility::PRIVATE);
     } else {
-      moduleNode = new ModuleNode(moduleName, moduleId);
+      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
     }
   }
   XMLString::release(&visibility);
@@ -345,6 +355,7 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       XMLString::release(&type);
     }
   }
+  currentScope_.pop_back();
   return moduleNode;
 }
 
@@ -449,6 +460,8 @@ Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
   XMLString::release(&visibility);
   return attributeNode;
 }
+
 extern "C" IParser* create_parser() { return new PapyrusParser; }
 extern "C" void destroy_parser(IParser* parser) { delete parser; }
+
 }  // namespace XMR

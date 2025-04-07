@@ -61,7 +61,8 @@ class PapyrusParser : public IParser {
 
   // used to store XMI id to name mapping to be used when
   // user defined modules are also used for attributes and param types.
-  std::unordered_map<std::string, std::string> idNameMap_;
+  std::unordered_map<std::string, std::vector<std::string>> idNameMap_;
+  std::vector<std::string> currentScope_;
 
   ModelNode* parseModel(xercesc::DOMNode* model);
   Package* parsePackage(xercesc::DOMElement* package);

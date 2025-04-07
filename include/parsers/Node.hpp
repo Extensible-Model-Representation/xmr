@@ -141,11 +141,16 @@ class ModuleNode : public Node {
   std::vector<Attribute*> publicAttributes_;
   std::vector<Attribute*> privateAttributes_;
   std::unordered_set<char*> dependencyList_;
+  std::vector<std::string> fullyQualified_;  // this module inclusive
 
   //!@todo: Do we want to default visibility if not set? Will it never be not
   //! set in the metadata?
-  ModuleNode(char* name, char* id, Visibility visibility = Visibility::PUBLIC)
-      : name_(name), id_(id), visibility_(visibility) {}
+  ModuleNode(char* name, char* id, std::vector<std::string> fullyQualified,
+             Visibility visibility = Visibility::PUBLIC)
+      : name_(name),
+        id_(id),
+        fullyQualified_(fullyQualified),
+        visibility_(visibility) {}
 
   std::vector<char*> getDependencies() {
     return std::vector<char*>(dependencyList_.begin(), dependencyList_.end());
@@ -196,8 +201,10 @@ class Package : public Node {
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
   std::vector<Relationship*> relationships_;
+  std::vector<std::string> fullyQualified_;  // This package inclusive
 
-  Package(char* name, char* id) : name_(name), id_(id) {}
+  Package(char* name, char* id, std::vector<std::string> fullyQualified)
+      : name_(name), id_(id), fullyQualified_(fullyQualified) {}
 
   inline void addPackage(Package* package) { packages_.push_back(package); }
 
@@ -227,12 +234,14 @@ class ModelNode : public Node {
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
   std::vector<Relationship*> relationships_;
+  std::vector<std::string> fullyQualified_;  // This model inclusive
 
-  // used to by copied at the end of parse so during code generation step can be
-  // used to lookup type names by xmi id
-  std::unordered_map<std::string, std::string> idNameMap_;
+  // used to by copied at the end of parse so during code generation step
+  // can be used to lookup type names by xmi id
+  std::unordered_map<std::string, std::vector<std::string>> idNameMap_;
 
-  ModelNode(char* name, char* id) : name_(name), id_(id) {}
+  ModelNode(char* name, char* id, std::vector<std::string> fullyQualified)
+      : name_(name), id_(id), fullyQualified_(fullyQualified) {}
 
   inline void addPackageImport(PackageImport* packageImport) {
     packageImports_.push_back(packageImport);
