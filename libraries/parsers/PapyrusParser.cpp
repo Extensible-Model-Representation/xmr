@@ -126,8 +126,7 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
     return nullptr;
   }
   DOMElement* modelDomElement = static_cast<DOMElement*>(model);
-  char* modelName =
-      XMLString::transcode(modelDomElement->getAttribute(nameKey_));
+  char* modelName = XMLString::transcode(modelDomElement->getAttribute(nameKey_));
   char* modelId = XMLString::transcode(modelDomElement->getAttribute(idKey_));
   currentScope_.push_back(modelName);
   ModelNode* modelNode = new ModelNode(modelName, modelId, currentScope_);
@@ -171,10 +170,6 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
             return nullptr;
           }
           modelNode->addModule(moduleNode);
-          for (auto& path : moduleNode->fullyQualified_) {
-            cout << path << " " << endl;
-          }
-
           idNameMap_[moduleNode->id_] = moduleNode->fullyQualified_;
 
         } break;
@@ -245,9 +240,6 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
             cerr << "Failed to parse module" << endl;
             return nullptr;
           }
-          for (auto& path : moduleNode->fullyQualified_) {
-            cout << path << " " << endl;
-          }
           idNameMap_[moduleNode->id_] = moduleNode->fullyQualified_;
           packageNode->addModule(moduleNode);
         } break;
@@ -290,8 +282,7 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
     // Double check its private first
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_,
-                                  Visibility::PRIVATE);
+      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_, Visibility::PRIVATE);
     } else {
       moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
     }
@@ -372,8 +363,7 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
     // is set by default.
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      operatorNode =
-          new Operator(operatorName, operatorId, Visibility::PRIVATE);
+      operatorNode = new Operator(operatorName, operatorId, Visibility::PRIVATE);
     } else {
       operatorNode = new Operator(operatorName, operatorId);
     }
@@ -393,14 +383,10 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
       Param* paramNode = nullptr;
       if (!param->hasAttribute(attributeTypeKey_)) {
         // primitive type
-        DOMElement* typeDomElement =
-            (DOMElement*)param->getElementsByTagName(attributeTypeKey_)
-                ->item(0);
-        typeNode = new Type(
-            XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
+        DOMElement* typeDomElement = (DOMElement*)param->getElementsByTagName(attributeTypeKey_)->item(0);
+        typeNode = new Type(XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
       } else {
-        typeNode = new Type(
-            XMLString::transcode(param->getAttribute(attributeTypeKey_)));
+        typeNode = new Type(XMLString::transcode(param->getAttribute(attributeTypeKey_)));
       }
       if (std::strcmp(direction, "return") == 0) {
         operatorNode->addReturnType(typeNode);
@@ -424,22 +410,17 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
 Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
   char* attributeName = XMLString::transcode(attribute->getAttribute(nameKey_));
   char* attributeId = XMLString::transcode(attribute->getAttribute(idKey_));
-  char* visibility =
-      XMLString::transcode(attribute->getAttribute(visibilityKey_));
+  char* visibility = XMLString::transcode(attribute->getAttribute(visibilityKey_));
   char* type = XMLString::transcode(attribute->getAttribute(attributeTypeKey_));
   Type* typeNode = nullptr;
   // If fail means primitive type
   if (!attribute->hasAttribute(attributeTypeKey_)) {
     // primitive type
-    DOMElement* typeDomElement =
-        (DOMElement*)attribute->getElementsByTagName(attributeTypeKey_)
-            ->item(0);
-    typeNode = new Type(
-        XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
+    DOMElement* typeDomElement = (DOMElement*)attribute->getElementsByTagName(attributeTypeKey_)->item(0);
+    typeNode = new Type(XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
 
   } else {
-    typeNode = new Type(
-        XMLString::transcode(attribute->getAttribute(attributeTypeKey_)));
+    typeNode = new Type(XMLString::transcode(attribute->getAttribute(attributeTypeKey_)));
   }
 
   Attribute* attributeNode;
@@ -451,8 +432,7 @@ Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
     // is set by default.
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      attributeNode = new Attribute(attributeName, attributeId, typeNode,
-                                    Visibility::PRIVATE);
+      attributeNode = new Attribute(attributeName, attributeId, typeNode, Visibility::PRIVATE);
     } else {
       attributeNode = new Attribute(attributeName, attributeId, typeNode);
     }

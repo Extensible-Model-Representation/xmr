@@ -94,5 +94,9 @@
   "C_Cpp.vcFormat.newLine.closeBraceSameLine.emptyFunction": true,
   "C_Cpp.vcFormat.newLine.closeBraceSameLine.emptyType": true,
   "C_Cpp.vcFormat.newLine.scopeBracesOnSeparateLines": true,
+  "editor.wordWrapColumn": 200,
+  "editor.wordWrap": "wordWrapColumn",
+  "C_Cpp.formatting": "default",
+  "C_Cpp.clang_format_style": "file",
   "css.format.braceStyle": "collapse"
 }
