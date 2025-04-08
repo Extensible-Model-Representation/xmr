@@ -13,7 +13,7 @@
 using namespace std;
 
 static vector<string> currentScope_;
-static unordered_map<char*, bool> generatedSymbols;
+static unordered_map<string, bool> generatedSymbols;
 static unordered_map<string, vector<string>> idNameMap;
 static unordered_set<string> noNoNames = {"delete", "new"};
 namespace XMR {
@@ -318,7 +318,7 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
   bool result = true;
   currentScope_.push_back(module->name_);
   os << "// Forward Decl" << endl;
-  std::vector<char*> deps = module->getDependencies();
+  vector<string> deps = module->getDependencies();
   for (size_t i = 0; i < deps.size(); i++) {
     if (!generatedSymbols[deps[i]]) {
       os << "class ";
