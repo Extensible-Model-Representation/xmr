@@ -143,6 +143,8 @@ class ModuleNode : public Node {
     return result;
   }
 
+  const size_t getNumDependencies() { return dependencyList_.size(); }
+
   void addOperator(Operator* op) {
     for (size_t i = 0; i < op->params_.size(); i++) {
       if (!op->params_[i]->type_->isPrimitive_) {
