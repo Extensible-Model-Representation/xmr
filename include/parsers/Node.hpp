@@ -126,7 +126,6 @@ class Attribute : public Node {
 class ModuleNode : public Node {
  public:
   char* name_ = nullptr;
-  std::vector<std::string> qualifiedName_;
   char* id_ = nullptr;
   Visibility visibility_;
   std::vector<char*> generalizations_;
@@ -245,7 +244,6 @@ class ModuleNode : public Node {
 class Package : public Node {
  public:
   char* name_ = nullptr;
-  std::vector<std::string> qualifiedName_;
   char* id_ = nullptr;
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
