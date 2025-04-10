@@ -197,16 +197,13 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
     }
   }
   modelNode->idNameMap_ = this->idNameMap_;
-
   currentScope_.pop_back();
-
   return modelNode;
 }
 
 //
 Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
   char* packageName = XMLString::transcode(package->getAttribute(nameKey_));
-  currentPath_.push_back(packageName);  // add scope
   char* packageId = XMLString::transcode(package->getAttribute(idKey_));
   currentScope_.push_back(packageName);
   Package* packageNode = new Package(packageName, packageId, currentScope_);
@@ -270,13 +267,11 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
     }
   }
   currentScope_.pop_back();
-
   return packageNode;
 }
 
 ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
   char* moduleName = XMLString::transcode(mod->getAttribute(nameKey_));
-  currentPath_.push_back(moduleName);  // add scope
   char* moduleId = XMLString::transcode(mod->getAttribute(idKey_));
   const XMLCh* visAtt = mod->getAttribute(visibilityKey_);
   char* visibility;
@@ -297,7 +292,6 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
     }
   }
-  moduleNode->qualifiedName_ = currentPath_;  // save path to module
   XMLString::release(&visibility);
   DOMNodeList* generalizations = mod->getElementsByTagName(generalizationAttrKey_);
   for (size_t i = 0; i < generalizations->getLength(); i++) {
@@ -364,7 +358,6 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
     }
   }
   currentScope_.pop_back();
-
   return moduleNode;
 }
 
