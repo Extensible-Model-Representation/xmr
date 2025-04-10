@@ -197,7 +197,9 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
     }
   }
   modelNode->idNameMap_ = this->idNameMap_;
+
   currentScope_.pop_back();
+
   return modelNode;
 }
 
@@ -267,6 +269,7 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
     }
   }
   currentScope_.pop_back();
+
   return packageNode;
 }
 
@@ -292,6 +295,7 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
     }
   }
+  moduleNode->qualifiedName_ = currentScope_;  // save path to module
   XMLString::release(&visibility);
   DOMNodeList* generalizations = mod->getElementsByTagName(generalizationAttrKey_);
   for (size_t i = 0; i < generalizations->getLength(); i++) {
@@ -358,6 +362,7 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
     }
   }
   currentScope_.pop_back();
+
   return moduleNode;
 }
 

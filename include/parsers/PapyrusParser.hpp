@@ -6,6 +6,7 @@
  ***********************************************************/
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "parsers/IParser.hpp"
 #include "xercesc/dom/DOMElement.hpp"
