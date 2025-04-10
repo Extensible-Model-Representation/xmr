@@ -49,6 +49,11 @@ PapyrusParser::PapyrusParser() {
   attributeTypeKey_ = XMLString::transcode("type");
   hrefKey_ = XMLString::transcode("href");
   paramKey_ = XMLString::transcode("ownedParameter");
+  generalizationAttrKey_ = XMLString::transcode("generalization");
+  generalKey_ = XMLString::transcode("general");
+  lowerValueAttrKey_ = XMLString::transcode("lowerValue");
+  upperValueAttrKey_ = XMLString::transcode("upperValue");
+  valueKey_ = XMLString::transcode("value");
 }
 
 // Destructor
@@ -126,12 +131,10 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
     return nullptr;
   }
   DOMElement* modelDomElement = static_cast<DOMElement*>(model);
-  char* modelName =
-      XMLString::transcode(modelDomElement->getAttribute(nameKey_));
-  currentPath_.push_back(modelName);  // global package is model name for now
+  char* modelName = XMLString::transcode(modelDomElement->getAttribute(nameKey_));
   char* modelId = XMLString::transcode(modelDomElement->getAttribute(idKey_));
-
-  ModelNode* modelNode = new ModelNode(modelName, modelId);
+  currentScope_.push_back(modelName);
+  ModelNode* modelNode = new ModelNode(modelName, modelId, currentScope_);
 
   // Grab children
   DOMNodeList* nodes = modelDomElement->getChildNodes();
@@ -172,7 +175,7 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
             return nullptr;
           }
           modelNode->addModule(moduleNode);
-          idNameMap_[moduleNode->id_] = moduleNode->name_;
+          idNameMap_[moduleNode->id_] = moduleNode->fullyQualified_;
 
         } break;
         case UmlType::PACKAGE: {
@@ -194,17 +197,19 @@ ModelNode* PapyrusParser::parseModel(DOMNode* model) {
     }
   }
   modelNode->idNameMap_ = this->idNameMap_;
-  currentPath_.pop_back();  // remove scope
+
+  currentScope_.pop_back();
+
   return modelNode;
 }
 
+//
 Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
   char* packageName = XMLString::transcode(package->getAttribute(nameKey_));
   currentPath_.push_back(packageName);  // add scope
   char* packageId = XMLString::transcode(package->getAttribute(idKey_));
-
-  Package* packageNode = new Package(packageName, packageId);
-  packageNode->qualifiedName_ = currentPath_;
+  currentScope_.push_back(packageName);
+  Package* packageNode = new Package(packageName, packageId, currentScope_);
 
   // Grab children
   DOMNodeList* nodes = package->getChildNodes();
@@ -243,7 +248,7 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
             cerr << "Failed to parse module" << endl;
             return nullptr;
           }
-          idNameMap_[moduleNode->id_] = moduleNode->name_;
+          idNameMap_[moduleNode->id_] = moduleNode->fullyQualified_;
           packageNode->addModule(moduleNode);
         } break;
         case UmlType::PACKAGE: {
@@ -264,7 +269,8 @@ Package* PapyrusParser::parsePackage(xercesc::DOMElement* package) {
       XMLString::release(&type);
     }
   }
-  currentPath_.pop_back();  // remove scope
+  currentScope_.pop_back();
+
   return packageNode;
 }
 
@@ -273,27 +279,32 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
   currentPath_.push_back(moduleName);  // add scope
   char* moduleId = XMLString::transcode(mod->getAttribute(idKey_));
   const XMLCh* visAtt = mod->getAttribute(visibilityKey_);
-
   char* visibility;
   if (visAtt != nullptr) {
     visibility = XMLString::transcode(visAtt);
   }
-
+  currentScope_.push_back(moduleName);
   ModuleNode* moduleNode;
 
   if (visibility == nullptr)
-    moduleNode = new ModuleNode(moduleName, moduleId);
+    moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
   else {
     // Double check its private first
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      moduleNode = new ModuleNode(moduleName, moduleId, Visibility::PRIVATE);
+      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_, Visibility::PRIVATE);
     } else {
-      moduleNode = new ModuleNode(moduleName, moduleId);
+      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
     }
   }
   moduleNode->qualifiedName_ = currentPath_;  // save path to module
   XMLString::release(&visibility);
+  DOMNodeList* generalizations = mod->getElementsByTagName(generalizationAttrKey_);
+  for (size_t i = 0; i < generalizations->getLength(); i++) {
+    DOMElement* general = (DOMElement*)generalizations->item(i);
+    char* generalType = XMLString::transcode(general->getAttribute(generalKey_));
+    moduleNode->addGeneralization(generalType);
+  }
 
   // Grab children
   DOMNodeList* nodes = mod->getChildNodes();
@@ -352,7 +363,8 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       XMLString::release(&type);
     }
   }
-  currentPath_.pop_back();  // remove scope
+  currentScope_.pop_back();
+
   return moduleNode;
 }
 
@@ -369,8 +381,9 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
     // is set by default.
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      operatorNode =
-          new Operator(operatorName, operatorId, Visibility::PRIVATE);
+      operatorNode = new Operator(operatorName, operatorId, Visibility::PRIVATE);
+    } else if (strcmp(visibility, "protected") == 0) {
+      operatorNode = new Operator(operatorName, operatorId, Visibility::PROTECTED);
     } else {
       operatorNode = new Operator(operatorName, operatorId);
     }
@@ -388,30 +401,123 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
       char* name = XMLString::transcode(param->getAttribute(nameKey_));
       Type* typeNode = nullptr;
       Param* paramNode = nullptr;
+      Param* returnNode = nullptr;
       if (!param->hasAttribute(attributeTypeKey_)) {
         // primitive type
-        DOMElement* typeDomElement =
-            (DOMElement*)param->getElementsByTagName(attributeTypeKey_)
-                ->item(0);
-        typeNode = new Type(
-            XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
+        DOMElement* typeDomElement = (DOMElement*)param->getElementsByTagName(attributeTypeKey_)->item(0);
+        typeNode = new Type(XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
       } else {
-        typeNode = new Type(
-            XMLString::transcode(param->getAttribute(attributeTypeKey_)));
+        typeNode = new Type(XMLString::transcode(param->getAttribute(attributeTypeKey_)));
       }
       if (std::strcmp(direction, "return") == 0) {
-        operatorNode->addReturnType(typeNode);
-
+        returnNode = new Param(name, id, typeNode);
       } else if (std::strcmp(direction, "out") == 0) {
         // reference/pointer
         paramNode = new Param(name, id, typeNode, Direction::OUT);
-        operatorNode->addParam(paramNode);
       } else {
         // By copy
         paramNode = new Param(name, id, typeNode);
+      }
+
+      // Check if its a param node as these have multiplicity tags!
+      if (paramNode) {
+        DOMNodeList* lowerBound = param->getElementsByTagName(lowerValueAttrKey_);
+
+        // Check for lower bounds
+        if (lowerBound && lowerBound->getLength() > 0) {
+          if (lowerBound->getLength() != 1) {
+            cerr << "Params can only support 1 lower bound!";
+            return nullptr;
+          }
+
+          DOMElement* lowerBoundNode = (DOMElement*)lowerBound->item(0);
+          char* lowerValue = XMLString::transcode(lowerBoundNode->getAttribute(valueKey_));
+          string lowerValueString = lowerValue;
+          if (!lowerValueString.empty()) {
+            paramNode->nilable_ = false;
+          } else {
+            paramNode->nilable_ = true;
+          }
+          XMLString::release(&lowerValue);
+        } else {
+          paramNode->nilable_ = false;
+        }
+
+        // Check upper bound
+        DOMNodeList* upperBound = param->getElementsByTagName(upperValueAttrKey_);
+        if (upperBound && upperBound->getLength() > 0) {
+          if (upperBound->getLength() != 1) {
+            cerr << "Params  can only support 1 upper bound!";
+            return nullptr;
+          }
+
+          DOMElement* upperBoundNode = (DOMElement*)upperBound->item(0);
+          char* upperValue = XMLString::transcode(upperBoundNode->getAttribute(valueKey_));
+          string value = upperValue;
+          if (value == "*") {
+            paramNode->unlimited_ = true;
+          } else {
+            paramNode->unlimited_ = false;
+            paramNode->multiplicity_ = atoi(upperValue);
+          }
+          XMLString::release(&upperValue);
+        } else {
+          paramNode->unlimited_ = false;
+        }
+
         operatorNode->addParam(paramNode);
       }
+
+      // Check if its a return node as these have multiplicity tags!
+      if (returnNode) {
+        DOMNodeList* lowerBound = param->getElementsByTagName(lowerValueAttrKey_);
+
+        // Check for lower bounds
+        if (lowerBound && lowerBound->getLength() > 0) {
+          if (lowerBound->getLength() != 1) {
+            cerr << "Return node can only support 1 lower bound!";
+            return nullptr;
+          }
+
+          DOMElement* lowerBoundNode = (DOMElement*)lowerBound->item(0);
+          char* lowerValue = XMLString::transcode(lowerBoundNode->getAttribute(valueKey_));
+          string lowerValueString = lowerValue;
+          if (!lowerValueString.empty()) {
+            returnNode->nilable_ = false;
+          } else {
+            returnNode->nilable_ = true;
+          }
+          XMLString::release(&lowerValue);
+        } else {
+          returnNode->nilable_ = false;
+        }
+
+        // Check upper bound
+        DOMNodeList* upperBound = param->getElementsByTagName(upperValueAttrKey_);
+        if (upperBound && upperBound->getLength() > 0) {
+          if (upperBound->getLength() != 1) {
+            cerr << "Return node  can only support 1 upper bound!";
+            return nullptr;
+          }
+
+          DOMElement* upperBoundNode = (DOMElement*)upperBound->item(0);
+          char* upperValue = XMLString::transcode(upperBoundNode->getAttribute(valueKey_));
+          string value = upperValue;
+          if (value == "*") {
+            returnNode->unlimited_ = true;
+          } else {
+            returnNode->unlimited_ = false;
+            returnNode->multiplicity_ = atoi(upperValue);
+          }
+          XMLString::release(&upperValue);
+        } else {
+          returnNode->unlimited_ = false;
+        }
+
+        operatorNode->addReturnType(returnNode);
+      }
     }
+
     XMLString::release(&directionKey);
   }
 
@@ -421,22 +527,17 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
 Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
   char* attributeName = XMLString::transcode(attribute->getAttribute(nameKey_));
   char* attributeId = XMLString::transcode(attribute->getAttribute(idKey_));
-  char* visibility =
-      XMLString::transcode(attribute->getAttribute(visibilityKey_));
+  char* visibility = XMLString::transcode(attribute->getAttribute(visibilityKey_));
   char* type = XMLString::transcode(attribute->getAttribute(attributeTypeKey_));
   Type* typeNode = nullptr;
   // If fail means primitive type
   if (!attribute->hasAttribute(attributeTypeKey_)) {
     // primitive type
-    DOMElement* typeDomElement =
-        (DOMElement*)attribute->getElementsByTagName(attributeTypeKey_)
-            ->item(0);
-    typeNode = new Type(
-        XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
+    DOMElement* typeDomElement = (DOMElement*)attribute->getElementsByTagName(attributeTypeKey_)->item(0);
+    typeNode = new Type(XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
 
   } else {
-    typeNode = new Type(
-        XMLString::transcode(attribute->getAttribute(attributeTypeKey_)));
+    typeNode = new Type(XMLString::transcode(attribute->getAttribute(attributeTypeKey_)));
   }
 
   Attribute* attributeNode;
@@ -448,15 +549,63 @@ Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
     // is set by default.
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
-      attributeNode = new Attribute(attributeName, attributeId, typeNode,
-                                    Visibility::PRIVATE);
+      attributeNode = new Attribute(attributeName, attributeId, typeNode, Visibility::PRIVATE);
+    } else if (strcmp(visibility, "protected") == 0) {
+      attributeNode = new Attribute(attributeName, attributeId, typeNode, Visibility::PROTECTED);
     } else {
       attributeNode = new Attribute(attributeName, attributeId, typeNode);
     }
   }
+
+  DOMNodeList* lowerBound = attribute->getElementsByTagName(lowerValueAttrKey_);
+
+  // Check for lower bounds
+  if (lowerBound && lowerBound->getLength() > 0) {
+    if (lowerBound->getLength() != 1) {
+      cerr << "Attributes can only support 1 lower bound!";
+      return nullptr;
+    }
+
+    DOMElement* lowerBoundNode = (DOMElement*)lowerBound->item(0);
+    char* lowerValue = XMLString::transcode(lowerBoundNode->getAttribute(valueKey_));
+    string lowerValueString = lowerValue;
+    if (!lowerValueString.empty()) {
+      attributeNode->nilable_ = false;
+    } else {
+      attributeNode->nilable_ = true;
+    }
+    XMLString::release(&lowerValue);
+  } else {
+    attributeNode->nilable_ = false;
+  }
+
+  // Check upper bound
+  DOMNodeList* upperBound = attribute->getElementsByTagName(upperValueAttrKey_);
+  if (upperBound && upperBound->getLength() > 0) {
+    if (upperBound->getLength() != 1) {
+      cerr << "Attributes can only support 1 upper bound!";
+      return nullptr;
+    }
+
+    DOMElement* upperBoundNode = (DOMElement*)upperBound->item(0);
+    char* upperValue = XMLString::transcode(upperBoundNode->getAttribute(valueKey_));
+    string value = upperValue;
+    if (value == "*") {
+      attributeNode->unlimited_ = true;
+    } else {
+      attributeNode->unlimited_ = false;
+      attributeNode->multiplicity_ = atoi(upperValue);
+    }
+    XMLString::release(&upperValue);
+  } else {
+    attributeNode->unlimited_ = false;
+  }
+
   XMLString::release(&visibility);
   return attributeNode;
 }
+
 extern "C" IParser* create_parser() { return new PapyrusParser; }
 extern "C" void destroy_parser(IParser* parser) { delete parser; }
+
 }  // namespace XMR
