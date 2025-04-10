@@ -136,6 +136,25 @@ class ModuleNode : public Node {
   std::vector<Attribute*> publicAttributes_;
   std::vector<Attribute*> protectedAttributes_;
   std::vector<Attribute*> privateAttributes_;
+
+  // We delineate two types of dependencies in XMR.
+  // 1.) Soft dependency: A soft dependency is when the type signature of the
+  // symbol allows for it to be either nilable and/or unlimited. Many languages allow
+  // for the handling of not having to declare the full type before its usage as long as
+  // the type is decayed to some form of incomplete type. This is well known in C++
+  // as forward declarations and using either a pointer or reference to an object rather than a copy.
+  // So the compiler does not require to know the full type as it only need to assign an address type.
+  // This is a common mechanism to break circular dependencies in OOP/OOD.
+  // 2.) Hard dependency: A hard dependency is when a type used in a class *HAS* to be fully declared before the class
+  // declaration. This can happen in on of two way: A generalization of class A by class B (inheritance in C++) and/or
+  // required a complete copy of the type as part of the class definition (Not a reference or pointer in C++). That is
+  // If class B either inherits from class A or stores a copy in its class definition then class B has a "hard" dependency
+  // on class A.
+
+  // Hard dependencies may or may not be allowed in certain programming languages. It is up to the implementing
+  // IGenerator implementation to either handle the hard and soft dependencies for each module or fail to generate the code
+  // depending on the languages rules. Common ways to handle in order generation of hardDependencies is to do a topological sort
+  // of the modules based on hard dependencies. This assumes that there is no "hard" circular dependencies in the XMR tree.
   std::unordered_map<std::string, std::string> softDependencyList_;
   std::unordered_map<std::string, std::string> hardDependencyList_;
   std::vector<std::string> fullyQualified_;  // this module inclusive
