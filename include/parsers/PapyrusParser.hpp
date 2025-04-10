@@ -28,7 +28,11 @@ class PapyrusParser : public IParser {
   XMLCh* attributeTypeKey_;
   XMLCh* hrefKey_;
   XMLCh* paramKey_;
-
+  XMLCh* generalizationAttrKey_;
+  XMLCh* generalKey_;
+  XMLCh* lowerValueAttrKey_;
+  XMLCh* upperValueAttrKey_;
+  XMLCh* valueKey_;
   // Various values returned from "xmi:type" key in XML DOM
   std::string packageType_ = "uml:Package";
   std::string packageImportType_ = "uml:PackageImport";
@@ -39,25 +43,10 @@ class PapyrusParser : public IParser {
   std::string operationType_ = "uml:Operation";
   std::string primitiveType_ = "uml:PrimitiveType";
 
-  enum UmlType {
-    PACKAGE,
-    PACKAGE_IMPORT,
-    CLASS,
-    INTERACTION,
-    ASSOCIATION,
-    PROPERTY,
-    OPERATION,
-    PRIMITIVE
-  };
-  std::unordered_map<std::string, UmlType> umlStringIdMap_ = {
-      {packageType_, UmlType::PACKAGE},
-      {packageImportType_, UmlType::PACKAGE_IMPORT},
-      {classType_, UmlType::CLASS},
-      {interactionType_, UmlType::INTERACTION},
-      {associationType_, UmlType::ASSOCIATION},
-      {propertyType_, UmlType::PROPERTY},
-      {operationType_, UmlType::OPERATION},
-      {primitiveType_, UmlType::PRIMITIVE}};
+  enum UmlType { PACKAGE, PACKAGE_IMPORT, CLASS, INTERACTION, ASSOCIATION, PROPERTY, OPERATION, PRIMITIVE };
+  std::unordered_map<std::string, UmlType> umlStringIdMap_ = {{packageType_, UmlType::PACKAGE},         {packageImportType_, UmlType::PACKAGE_IMPORT}, {classType_, UmlType::CLASS},
+                                                              {interactionType_, UmlType::INTERACTION}, {associationType_, UmlType::ASSOCIATION},      {propertyType_, UmlType::PROPERTY},
+                                                              {operationType_, UmlType::OPERATION},     {primitiveType_, UmlType::PRIMITIVE}};
 
   // used to store XMI id to name mapping to be used when
   // user defined modules are also used for attributes and param types.

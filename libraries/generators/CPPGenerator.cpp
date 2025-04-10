@@ -18,6 +18,51 @@ static unordered_map<string, vector<string>> idNameMap;
 static unordered_set<string> noNoNames = {"delete", "new"};
 namespace XMR {
 
+string generateQualifedName(string fullName) {
+  string qualifiedName;
+  const size_t MIN_LENGTH = min(idNameMap[fullName].size(), currentScope_.size());
+
+  for (size_t j = 0; j < MIN_LENGTH; j++) {
+    string subPath = idNameMap[fullName][j];
+    if (subPath == currentScope_[j]) {
+      continue;
+    } else {
+      // Check if qualified name is starting in the global namespace
+      if (qualifiedName.empty() && j == 0) {
+        qualifiedName = "::" + subPath;
+      }
+      // Check if first namespace to be added
+      else if (qualifiedName.empty() && j != 0) {
+        qualifiedName = subPath;
+      }
+      // Append subpath to qualified name
+      else {
+        qualifiedName = qualifiedName + "::" + subPath;
+      }
+    }
+  }
+
+  // Check if there is any remaining names in fully qualified path
+  // given that current scope was the min length
+  if (MIN_LENGTH < idNameMap[fullName].size()) {
+    for (size_t j = MIN_LENGTH; j < idNameMap[fullName].size(); j++) {
+      string subPath = idNameMap[fullName][j];
+      // If empty append global namespace
+      if (qualifiedName.empty()) {
+        qualifiedName = "::" + subPath;
+      } else {
+        qualifiedName = qualifiedName + "::" + subPath;
+      }
+    }
+  }
+
+  if (qualifiedName.empty()) {
+    qualifiedName = fullName.back();
+  }
+
+  return qualifiedName;
+}
+
 bool checkOperatorName(char* name) {
   // lookup no no phrased for c++ operator names, i.e. new delete
   if (noNoNames.contains(name)) {
@@ -91,6 +136,8 @@ bool generateOperator(std::ostream& os, Operator* op) {
         if (!generatedSymbols[op->returnType_->type_]) {
           // inject a pointer as usage of incomplete type in class def not
           // permissible in C++
+          //!@todo: XMI metadata doesn't track multiplicity of return type params. Do we just inject here or should this
+          // be gated by a hard circular dependency check? I.e, leave it as is and throw warning or hard gate that only concrete return types allowed.
           os << "*";
         }
       }
@@ -158,12 +205,25 @@ bool generateOperator(std::ostream& os, Operator* op) {
           }
 
           os << qualifiedName;
-          if (!generatedSymbols[op->params_[i]->type_->type_]) {
-            // inject a pointer as usage of incomplete type in class def not
-            // permissible in C++
-            //!@todo: this feels icky
+
+          if (op->params_[i]->nilable_) {
             os << "*";
           }
+
+          if (op->params_[i]->unlimited_) {
+            os << "*";
+          }
+
+          if (!op->params_[i]->unlimited_ && op->params_[i]->multiplicity_ > 1) {
+            os << "[ " << op->params_[i]->multiplicity_ << " ] ";
+          }
+
+          // if (!generatedSymbols[op->params_[i]->type_->type_]) {
+          //   // inject a pointer as usage of incomplete type in class def not
+          //   // permissible in C++
+          //   //!@todo: this feels icky
+          //   os << "*";
+          // }
         }
         os << " " << op->params_[i]->name_ << ", ";
       }
@@ -302,12 +362,25 @@ bool generateAttribute(std::ostream& os, Attribute* attribute) {
     }
 
     os << qualifiedName;
-    if (!generatedSymbols[attribute->type_->type_]) {
-      // inject a pointer as usage of incomplete type in class def not
-      // permissible in C++
-      //!@todo: this feels icky
+
+    if (attribute->nilable_) {
       os << "*";
     }
+
+    if (attribute->unlimited_) {
+      os << "*";
+    }
+
+    if (!attribute->unlimited_ && attribute->multiplicity_ > 1) {
+      os << "[ " << attribute->multiplicity_ << " ] ";
+    }
+
+    // if (!generatedSymbols[attribute->type_->type_] && !attribute->nilable_) {
+    //   // inject a pointer as usage of incomplete type in class def not
+    //   // permissible in C++
+    //   //!@todo: this feels icky
+    //   os << "*";
+    // }
   }
   os << " " << attribute->name_ << ";" << endl;
 
@@ -318,7 +391,10 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
   bool result = true;
   currentScope_.push_back(module->name_);
   os << "// Forward Decl" << endl;
-  vector<string> deps = module->getDependencies();
+
+  // Only forward declare soft dependencies that haven't been generated
+  // In C++ hard dependencies must be resolved with topological sort of class generation order.
+  vector<string> deps = module->getSoftDependencies();
   for (size_t i = 0; i < deps.size(); i++) {
     if (!generatedSymbols[deps[i]]) {
       os << "class ";
@@ -369,7 +445,33 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
 
   os << endl;
 
-  os << "class " << module->name_ << " {" << endl;
+  os << "class " << module->name_;
+
+  // Check for inheritance
+  if (!module->generalizations_.empty()) {
+    // If only one generate single, else generate n - 1 then generate last one to handle not adding comma
+    if (module->generalizations_.size() == 1) {
+      os << " : public ";
+      string qualifiedName = generateQualifedName(module->generalizations_[0]);
+      os << qualifiedName;
+
+    } else {
+      // more than 1 generalization, generate first n - 1
+      os << " : ";
+      for (size_t i = 0; i < module->generalizations_.size() - 1; i++) {
+        os << "public ";
+        string qualifiedName = generateQualifedName(module->generalizations_[i]);
+        os << qualifiedName << ", ";
+      }
+
+      // Generate the nth qualified name;
+      os << "public";
+      string qualifiedName = generateQualifedName(module->generalizations_[module->generalizations_.size() - 1]);
+      os << qualifiedName;
+    }
+  }
+
+  os << " {" << endl;
   // generate private first since CPP classes default to private
   os << "// attributes" << endl;
   for (size_t i = 0; i < module->privateAttributes_.size(); i++) {
@@ -380,6 +482,20 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
     result = generateOperator(os, module->privateOperators_[i]) && result;
   }
 
+  // Next protected
+  os << "protected: " << endl << endl;
+  os << "// attributes" << endl;
+
+  for (size_t i = 0; i < module->protectedAttributes_.size(); i++) {
+    result = generateAttribute(os, module->protectedAttributes_[i]) && result;
+  }
+
+  os << "// operators " << endl;
+  for (size_t i = 0; i < module->protectedOperators_.size(); i++) {
+    result = generateOperator(os, module->protectedOperators_[i]) && result;
+  }
+
+  // Finally public.
   os << "public: " << endl << endl;
   os << "// attributes" << endl;
 

@@ -33,7 +33,7 @@ class Node {
   ~Node() = default;
 };
 
-enum Visibility { PUBLIC, PRIVATE };
+enum Visibility { PUBLIC, PROTECTED, PRIVATE };
 enum Direction { IN, OUT };
 
 class PackageImport : public Node {};
@@ -53,6 +53,9 @@ class Param {
   char* id_ = nullptr;
   Type* type_ = nullptr;
   Direction direction_;
+  bool nilable_ = false;           // this is when lower bound multiplicity is 0
+  bool unlimited_ = false;         // this is when upper bound multiplicity is *
+  unsigned int multiplicity_ = 1;  // this is invalid if  unlimited_
 
   Param(char* name, char* id, Type* type, Direction direction = Direction::IN) : name_(name), id_(id), type_(type), direction_(direction) {}
 
@@ -100,6 +103,9 @@ class Attribute : public Node {
   char* id_ = nullptr;
   Type* type_ = nullptr;
   Visibility visibility_;
+  bool nilable_ = false;           // this is when lower bound multiplicity is 0
+  bool unlimited_ = false;         // this is when upper bound multiplicity is *
+  unsigned int multiplicity_ = 1;  // this is invalid if  unlimited_
 
   Attribute(char* name, char* id, Type* type, Visibility visibility = Visibility::PUBLIC) : name_(name), id_(id), type_(type), visibility_(visibility) {}
 
@@ -122,12 +128,16 @@ class ModuleNode : public Node {
   char* name_ = nullptr;
   char* id_ = nullptr;
   Visibility visibility_;
+  std::vector<char*> generalizations_;
 
   std::vector<Operator*> publicOperators_;
+  std::vector<Operator*> protectedOperators_;
   std::vector<Operator*> privateOperators_;
   std::vector<Attribute*> publicAttributes_;
+  std::vector<Attribute*> protectedAttributes_;
   std::vector<Attribute*> privateAttributes_;
-  std::unordered_map<std::string, std::string> dependencyList_;
+  std::unordered_map<std::string, std::string> softDependencyList_;
+  std::unordered_map<std::string, std::string> hardDependencyList_;
   std::vector<std::string> fullyQualified_;  // this module inclusive
 
   //!@todo: Do we want to default visibility if not set? Will it never be not
@@ -135,25 +145,48 @@ class ModuleNode : public Node {
   ModuleNode(char* name, char* id, std::vector<std::string> fullyQualified, Visibility visibility = Visibility::PUBLIC)
       : name_(name), id_(id), fullyQualified_(fullyQualified), visibility_(visibility) {}
 
-  std::vector<std::string> getDependencies() {
+  std::vector<std::string> getSoftDependencies() {
     std::vector<std::string> result;
-    for (auto& pair : dependencyList_) {
+    for (auto& pair : softDependencyList_) {
       result.push_back(pair.first);
     }
     return result;
   }
 
-  const size_t getNumDependencies() { return dependencyList_.size(); }
+  std::vector<std::string> getHardDependencies() {
+    std::vector<std::string> result;
+    for (auto& pair : hardDependencyList_) {
+      result.push_back(pair.first);
+    }
+    return result;
+  }
+
+  const size_t getNumHardDependencies() { return hardDependencyList_.size(); }
+
+  const size_t getNumSoftDependencies() { return softDependencyList_.size(); }
+
+  void addGeneralization(char* generalization) {
+    // Generalizations are always hard dependencies
+    hardDependencyList_[generalization] = generalization;
+    generalizations_.push_back(generalization);
+  }
 
   void addOperator(Operator* op) {
     for (size_t i = 0; i < op->params_.size(); i++) {
       if (!op->params_[i]->type_->isPrimitive_) {
-        dependencyList_[op->params_[i]->type_->type_] = op->params_[i]->type_->type_;
+        // Nilable and unlimited params are "soft" dependencies
+        if (op->params_[i]->nilable_ || op->params_[i]->unlimited_) {
+          softDependencyList_[op->params_[i]->type_->type_] = op->params_[i]->type_->type_;
+        } else {
+          hardDependencyList_[op->params_[i]->type_->type_] = op->params_[i]->type_->type_;
+        }
       }
     }
     if (op->visibility_ == Visibility::PRIVATE) {
       privateOperators_.push_back(op);
 
+    } else if (op->visibility_ == Visibility::PROTECTED) {
+      protectedOperators_.push_back(op);
     } else {
       publicOperators_.push_back(op);
     }
@@ -161,10 +194,16 @@ class ModuleNode : public Node {
 
   void addAttribute(Attribute* attribute) {
     if (!attribute->type_->isPrimitive_) {
-      dependencyList_[attribute->type_->type_] = attribute->type_->type_;
+      if (attribute->nilable_ || attribute->unlimited_) {
+        softDependencyList_[attribute->type_->type_] = attribute->type_->type_;
+      } else {
+        hardDependencyList_[attribute->type_->type_] = attribute->type_->type_;
+      }
     }
     if (attribute->visibility_ == Visibility::PRIVATE) {
       privateAttributes_.push_back(attribute);
+    } else if (attribute->visibility_ == Visibility::PROTECTED) {
+      protectedAttributes_.push_back(attribute);
     } else {
       publicAttributes_.push_back(attribute);
     }
