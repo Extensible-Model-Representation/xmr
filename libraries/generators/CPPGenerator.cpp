@@ -214,10 +214,6 @@ bool generateOperator(std::ostream& os, Operator* op) {
             os << "*";
           }
 
-          if (!op->params_[i]->unlimited_ && op->params_[i]->multiplicity_ > 1) {
-            os << "[ " << op->params_[i]->multiplicity_ << " ] ";
-          }
-
           // if (!generatedSymbols[op->params_[i]->type_->type_]) {
           //   // inject a pointer as usage of incomplete type in class def not
           //   // permissible in C++
@@ -225,7 +221,14 @@ bool generateOperator(std::ostream& os, Operator* op) {
           //   os << "*";
           // }
         }
-        os << " " << op->params_[i]->name_ << ", ";
+        os << " " << op->params_[i]->name_;
+
+        // Check if multiplicity between 2 - 6
+        if (!op->params_[i]->unlimited_ && op->params_[i]->multiplicity_ > 1) {
+          os << "[ " << op->params_[i]->multiplicity_ << " ] ";
+        }
+
+        os << ", ";
       }
 
       if (op->params_[op->params_.size() - 1]->type_->isPrimitive_) {
@@ -371,10 +374,6 @@ bool generateAttribute(std::ostream& os, Attribute* attribute) {
       os << "*";
     }
 
-    if (!attribute->unlimited_ && attribute->multiplicity_ > 1) {
-      os << "[ " << attribute->multiplicity_ << " ] ";
-    }
-
     // if (!generatedSymbols[attribute->type_->type_] && !attribute->nilable_) {
     //   // inject a pointer as usage of incomplete type in class def not
     //   // permissible in C++
@@ -382,7 +381,12 @@ bool generateAttribute(std::ostream& os, Attribute* attribute) {
     //   os << "*";
     // }
   }
-  os << " " << attribute->name_ << ";" << endl;
+  os << " " << attribute->name_;
+  if (!attribute->unlimited_ && attribute->multiplicity_ > 1) {
+    os << "[ " << attribute->multiplicity_ << " ] ";
+  }
+
+  os << ";" << endl;
 
   return true;
 }
