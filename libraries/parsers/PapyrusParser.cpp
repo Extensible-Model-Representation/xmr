@@ -394,6 +394,7 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
       char* name = XMLString::transcode(param->getAttribute(nameKey_));
       Type* typeNode = nullptr;
       Param* paramNode = nullptr;
+      Param* returnNode = nullptr;
       if (!param->hasAttribute(attributeTypeKey_)) {
         // primitive type
         DOMElement* typeDomElement = (DOMElement*)param->getElementsByTagName(attributeTypeKey_)->item(0);
@@ -402,8 +403,7 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
         typeNode = new Type(XMLString::transcode(param->getAttribute(attributeTypeKey_)));
       }
       if (std::strcmp(direction, "return") == 0) {
-        operatorNode->addReturnType(typeNode);
-
+        returnNode = new Param(name, id, typeNode);
       } else if (std::strcmp(direction, "out") == 0) {
         // reference/pointer
         paramNode = new Param(name, id, typeNode, Direction::OUT);
@@ -459,6 +459,55 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
         }
 
         operatorNode->addParam(paramNode);
+      }
+
+      // Check if its a return node as these have multiplicity tags!
+      if (returnNode) {
+        DOMNodeList* lowerBound = param->getElementsByTagName(lowerValueAttrKey_);
+
+        // Check for lower bounds
+        if (lowerBound && lowerBound->getLength() > 0) {
+          if (lowerBound->getLength() != 1) {
+            cerr << "Return node can only support 1 lower bound!";
+            return nullptr;
+          }
+
+          DOMElement* lowerBoundNode = (DOMElement*)lowerBound->item(0);
+          char* lowerValue = XMLString::transcode(lowerBoundNode->getAttribute(valueKey_));
+          string lowerValueString = lowerValue;
+          if (!lowerValueString.empty()) {
+            returnNode->nilable_ = false;
+          } else {
+            returnNode->nilable_ = true;
+          }
+          XMLString::release(&lowerValue);
+        } else {
+          returnNode->nilable_ = false;
+        }
+
+        // Check upper bound
+        DOMNodeList* upperBound = param->getElementsByTagName(upperValueAttrKey_);
+        if (upperBound && upperBound->getLength() > 0) {
+          if (upperBound->getLength() != 1) {
+            cerr << "Return node  can only support 1 upper bound!";
+            return nullptr;
+          }
+
+          DOMElement* upperBoundNode = (DOMElement*)upperBound->item(0);
+          char* upperValue = XMLString::transcode(upperBoundNode->getAttribute(valueKey_));
+          string value = upperValue;
+          if (value == "*") {
+            returnNode->unlimited_ = true;
+          } else {
+            returnNode->unlimited_ = false;
+            returnNode->multiplicity_ = atoi(upperValue);
+          }
+          XMLString::release(&upperValue);
+        } else {
+          returnNode->unlimited_ = false;
+        }
+
+        operatorNode->addReturnType(returnNode);
       }
     }
 

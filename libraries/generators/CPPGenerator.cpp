@@ -75,10 +75,10 @@ bool checkOperatorName(char* name) {
 bool generateOperator(std::ostream& os, Operator* op) {
   if (checkOperatorName(op->name_)) {
     if (op->returnType_) {
-      if (op->returnType_->isPrimitive_) {
+      if (op->returnType_->type_->isPrimitive_) {
         std::string hash = "#";
-        size_t index = strcspn(op->returnType_->type_, hash.c_str());
-        std::string type = std::to_string(op->returnType_->type_[index]);
+        size_t index = strcspn(op->returnType_->type_->type_, hash.c_str());
+        std::string type = std::to_string(op->returnType_->type_->type_[index]);
         if (type == "Boolean") {
           os << "bool ";
         } else if (type == "Real") {
@@ -90,10 +90,10 @@ bool generateOperator(std::ostream& os, Operator* op) {
       } else {
         // lookup type name of id
         string qualifiedName;
-        const size_t MIN_LENGTH = min(idNameMap[op->returnType_->type_].size(), currentScope_.size());
+        const size_t MIN_LENGTH = min(idNameMap[op->returnType_->type_->type_].size(), currentScope_.size());
 
         for (size_t i = 0; i < MIN_LENGTH; i++) {
-          string subPath = idNameMap[op->returnType_->type_][i];
+          string subPath = idNameMap[op->returnType_->type_->type_][i];
           if (subPath == currentScope_[i]) {
             continue;
           } else {
@@ -114,9 +114,9 @@ bool generateOperator(std::ostream& os, Operator* op) {
 
         // Check if there is any remaining names in fully qualified path
         // given that current scope was the min length
-        if (MIN_LENGTH < idNameMap[op->returnType_->type_].size()) {
-          for (size_t i = MIN_LENGTH; i < idNameMap[op->returnType_->type_].size(); i++) {
-            string subPath = idNameMap[op->returnType_->type_][i];
+        if (MIN_LENGTH < idNameMap[op->returnType_->type_->type_].size()) {
+          for (size_t i = MIN_LENGTH; i < idNameMap[op->returnType_->type_->type_].size(); i++) {
+            string subPath = idNameMap[op->returnType_->type_->type_][i];
             // If empty append global namespace
             if (qualifiedName.empty()) {
               qualifiedName = "::" + subPath;
@@ -133,14 +133,28 @@ bool generateOperator(std::ostream& os, Operator* op) {
         }
 
         os << qualifiedName;
-        if (!generatedSymbols[op->returnType_->type_]) {
-          // inject a pointer as usage of incomplete type in class def not
-          // permissible in C++
-          //!@todo: XMI metadata doesn't track multiplicity of return type params. Do we just inject here or should this
-          // be gated by a hard circular dependency check? I.e, leave it as is and throw warning or hard gate that only concrete return types allowed.
-          os << "*";
-        }
+
+        // if (!generatedSymbols[op->params_[i]->type_->type_]) {
+        //   // inject a pointer as usage of incomplete type in class def not
+        //   // permissible in C++
+        //   //!@todo: this feels icky
+        //   os << "*";
+        // }
       }
+
+      if (op->returnType_->nilable_) {
+        os << "*";
+      }
+
+      if (op->returnType_->unlimited_) {
+        os << "*";
+      }
+
+      // Check if multiplicity between 2 - 6
+      if (!op->returnType_->unlimited_ && op->returnType_->multiplicity_ > 1) {
+        os << "[ " << op->returnType_->multiplicity_ << " ] ";
+      }
+
     } else {
       os << "void";
     }
@@ -206,14 +220,6 @@ bool generateOperator(std::ostream& os, Operator* op) {
 
           os << qualifiedName;
 
-          if (op->params_[i]->nilable_) {
-            os << "*";
-          }
-
-          if (op->params_[i]->unlimited_) {
-            os << "*";
-          }
-
           // if (!generatedSymbols[op->params_[i]->type_->type_]) {
           //   // inject a pointer as usage of incomplete type in class def not
           //   // permissible in C++
@@ -221,6 +227,15 @@ bool generateOperator(std::ostream& os, Operator* op) {
           //   os << "*";
           // }
         }
+
+        if (op->params_[i]->nilable_) {
+          os << "*";
+        }
+
+        if (op->params_[i]->unlimited_) {
+          os << "*";
+        }
+
         os << " " << op->params_[i]->name_;
 
         // Check if multiplicity between 2 - 6
@@ -295,7 +310,20 @@ bool generateOperator(std::ostream& os, Operator* op) {
           os << "*";
         }
       }
+
+      if (op->params_[op->params_.size() - 1]->nilable_) {
+        os << "*";
+      }
+
+      if (op->params_[op->params_.size() - 1]->unlimited_) {
+        os << "*";
+      }
       os << " " << op->params_[op->params_.size() - 1]->name_;
+
+      // Check if multiplicity between 2 - 6
+      if (!op->params_[op->params_.size() - 1]->unlimited_ && op->params_[op->params_.size() - 1]->multiplicity_ > 1) {
+        os << "[ " << op->params_[op->params_.size() - 1]->multiplicity_ << " ] ";
+      }
     }
 
     //
@@ -366,14 +394,6 @@ bool generateAttribute(std::ostream& os, Attribute* attribute) {
 
     os << qualifiedName;
 
-    if (attribute->nilable_) {
-      os << "*";
-    }
-
-    if (attribute->unlimited_) {
-      os << "*";
-    }
-
     // if (!generatedSymbols[attribute->type_->type_] && !attribute->nilable_) {
     //   // inject a pointer as usage of incomplete type in class def not
     //   // permissible in C++
@@ -381,6 +401,15 @@ bool generateAttribute(std::ostream& os, Attribute* attribute) {
     //   os << "*";
     // }
   }
+
+  if (attribute->nilable_) {
+    os << "*";
+  }
+
+  if (attribute->unlimited_) {
+    os << "*";
+  }
+
   os << " " << attribute->name_;
   if (!attribute->unlimited_ && attribute->multiplicity_ > 1) {
     os << "[ " << attribute->multiplicity_ << " ] ";

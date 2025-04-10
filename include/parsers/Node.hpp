@@ -71,9 +71,9 @@ class Operator : public Node {
   char* id_ = nullptr;
   Visibility visibility_;
   std::vector<Param*> params_;
-  Type* returnType_ = nullptr;
+  Param* returnType_ = nullptr;
 
-  Operator(char* name, char* id, Visibility visibility = Visibility::PUBLIC, Type* returnType = nullptr) : name_(name), id_(id), visibility_(visibility), returnType_(returnType) {}
+  Operator(char* name, char* id, Visibility visibility = Visibility::PUBLIC, Param* returnType = nullptr) : name_(name), id_(id), visibility_(visibility), returnType_(returnType) {}
 
   void generate(std::ostream& os) final {
     os << "Called Operator Generate for Operator Node: " << std::endl;
@@ -81,13 +81,13 @@ class Operator : public Node {
   }
 
   void addParam(Param* param) { params_.push_back(param); }
-  void addReturnType(Type* returnType) { returnType_ = returnType; }
+  void addReturnType(Param* returnType) { returnType_ = returnType; }
 
   friend std::ostream& operator<<(std::ostream& os, const Operator node) {
     os << "Operator Name: " << node.name_ << std::endl;
     os << "Operator Id: " << node.id_ << std::endl;
     os << "Operator Visiblity: " << node.visibility_ << std::endl;
-    os << "Operator Return Type: " << (node.returnType_ == nullptr ? "Void" : node.returnType_->type_) << std::endl;
+    // os << "Operator Return Type: " << (node.returnType_ == nullptr ? "Void" : node.returnType_->type_) << std::endl;
     os << "Operator Params: " << std::endl;
     for (size_t i = 0; i < node.params_.size(); i++) {
       os << *node.params_[i];
