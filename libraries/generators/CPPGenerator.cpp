@@ -8,7 +8,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <set>
 #include <unordered_map>
+
+#include "generators/Graph.hpp"
 
 using namespace std;
 
@@ -498,7 +501,7 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
       }
 
       // Generate the nth qualified name;
-      os << "public";
+      os << "public ";
       string qualifiedName = generateQualifedName(module->generalizations_[module->generalizations_.size() - 1]);
       os << qualifiedName;
     }
@@ -566,8 +569,101 @@ bool generatePackage(ostream& os, Package* package) {
   return result;
 }
 
+// Flattens all modules to be used for circular dependency checks and topalogical sort
+vector<ModuleNode*> flatten(ModelNode* root) {
+  vector<ModuleNode*> flattenedModules;
+  for (auto& package : root->packages_) {
+    flattenedModules.insert(flattenedModules.end(), package->modules_.begin(), package->modules_.end());
+  }
+
+  flattenedModules.insert(flattenedModules.begin(), root->modules_.begin(), root->modules_.end());
+  return flattenedModules;
+}
+
+bool hasHardCircularDependency(vector<ModuleNode*>& flattenedModules) {
+  //!@todo: Last thing todo for robust checking
+  return false;
+}
+
+vector<ModuleNode*> sortHardDependencies(vector<ModuleNode*> flattenedModules) {
+  vector<ModuleNode*> softDependenciesOnly;
+  set<string> softDependencyIds;
+  vector<ModuleNode*> hardDependencies;
+
+  for (auto& module : flattenedModules) {
+    if (module->hardDependencyList_.size() > 0) {
+      hardDependencies.push_back(module);
+    } else {
+      softDependenciesOnly.push_back(module);
+      softDependencyIds.insert(module->id_);
+    }
+  }
+  DependencyGraph dp;
+  for (auto& module : hardDependencies) {
+    for (auto& dep : module->hardDependencyList_) {
+      cout << "Adding edge: v: " << module->id_ << " w: " << dep.first << endl;
+      dp.addEdge(module->id_, dep.first);
+    }
+  }
+  vector<string> sortedDeps = dp.topSort();
+  cout << "Sorted Deps: ";
+  for (auto& dep : sortedDeps) {
+    cout << " " << dep;
+  }
+  for (size_t i = sortedDeps.size() - 1; i > hardDependencies.size(); i++) {
+    if (softDependencyIds.contains(sortedDeps[i])) {
+      sortedDeps.pop_back();
+    } else {
+      break;
+    }
+  }
+  vector<ModuleNode*> sortedModules;
+  // At this point, the sorted deps contains xmi id's of only modules that have hard dependencies but are are sorted correctly
+  for (auto& id : sortedDeps) {
+    for (auto& module : hardDependencies) {
+      if (id == module->id_) {
+        sortedModules.push_back(module);
+      }
+    }
+  }
+
+  sortedModules.insert(sortedModules.end(), softDependenciesOnly.begin(), softDependenciesOnly.end());
+  // now reverse order so elements with the least # of hard deps are first in gen order
+  reverse(sortedModules.begin(), sortedModules.end());
+  return sortedModules;
+}
+
+bool CPPGenerator::check(ModelNode* root) {
+  checkCalled_ = true;
+
+  vector<ModuleNode*> flattenedModules = flatten(root);
+  if (hasHardCircularDependency(flattenedModules)) {
+    cerr << "C++ cannot have hard circular dependencies!" << endl;
+    modelValid_ = false;
+    return false;
+  }
+
+  // now can  inverse toplogical sort hard dependencies
+  vector<ModuleNode*> sortedModules = sortHardDependencies(flattenedModules);
+  root->packages_.clear();
+  root->modules_ = sortedModules;
+  modelValid_ = true;
+  return true;
+}
+
 bool CPPGenerator::generate(std::ostream& os, ModelNode* root) {
-  bool result = true;
+  bool result;
+  if (!checkCalled_) {
+    result = this->check(root);
+  } else {
+    result = modelValid_;
+  }
+
+  if (!result) {
+    cerr << "Failed to generate due to invalid model layout. Check other logs for conditions that failed check!";
+    return false;
+  }
+
   currentScope_.push_back(root->name_);
   idNameMap = root->idNameMap_;
   char* modelName = root->name_;

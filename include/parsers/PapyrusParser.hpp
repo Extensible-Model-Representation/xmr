@@ -43,11 +43,12 @@ class PapyrusParser : public IParser {
   std::string propertyType_ = "uml:Property";
   std::string operationType_ = "uml:Operation";
   std::string primitiveType_ = "uml:PrimitiveType";
+  std::string generalType_ = "uml:Generalization";
 
-  enum UmlType { PACKAGE, PACKAGE_IMPORT, CLASS, INTERACTION, ASSOCIATION, PROPERTY, OPERATION, PRIMITIVE };
+  enum UmlType { PACKAGE, PACKAGE_IMPORT, CLASS, INTERACTION, ASSOCIATION, PROPERTY, OPERATION, PRIMITIVE, GENERALIZATION };
   std::unordered_map<std::string, UmlType> umlStringIdMap_ = {{packageType_, UmlType::PACKAGE},         {packageImportType_, UmlType::PACKAGE_IMPORT}, {classType_, UmlType::CLASS},
                                                               {interactionType_, UmlType::INTERACTION}, {associationType_, UmlType::ASSOCIATION},      {propertyType_, UmlType::PROPERTY},
-                                                              {operationType_, UmlType::OPERATION},     {primitiveType_, UmlType::PRIMITIVE}};
+                                                              {operationType_, UmlType::OPERATION},     {primitiveType_, UmlType::PRIMITIVE},          {generalType_, UmlType::GENERALIZATION}};
 
   // used to store XMI id to name mapping to be used when
   // user defined modules are also used for attributes and param types.
