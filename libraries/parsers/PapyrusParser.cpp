@@ -289,11 +289,14 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
     //!@todo: Do we handle protected?
     if (strcmp(visibility, "private") == 0) {
       moduleNode = new ModuleNode(moduleName, moduleId, currentScope_, Visibility::PRIVATE);
+    } else if (strcmp(visibility, "protected") == 0) {
+      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_, Visibility::PROTECTED);
+    } else if (strcmp(visibility, "package") == 0) {
+      moduleNode = new ModuleNode(moduleName, moduleId, currentScope_, Visibility::PACKAGE);
     } else {
       moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
     }
   }
-  moduleNode->qualifiedName_ = currentScope_;  // save path to module
   XMLString::release(&visibility);
 
   // Grab children
@@ -326,6 +329,15 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
       }
 
       switch (umlStringIdMap_[type]) {
+        case UmlType::CLASS: {
+          ModuleNode* nestedModuleNode = parseModule(domElement);
+          if (nestedModuleNode == nullptr) {
+            cerr << "Failed to parse module" << endl;
+            return nullptr;
+          }
+          idNameMap_[nestedModuleNode->id_] = nestedModuleNode->fullyQualified_;
+          moduleNode->addModule(nestedModuleNode);
+        } break;
         case UmlType::OPERATION: {
           Operator* operatorNode = parseOperator(domElement);
           if (operatorNode == nullptr) {
@@ -378,6 +390,8 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
       operatorNode = new Operator(operatorName, operatorId, Visibility::PRIVATE);
     } else if (strcmp(visibility, "protected") == 0) {
       operatorNode = new Operator(operatorName, operatorId, Visibility::PROTECTED);
+    } else if (strcmp(visibility, "package") == 0) {
+      operatorNode = new Operator(operatorName, operatorId, Visibility::PACKAGE);
     } else {
       operatorNode = new Operator(operatorName, operatorId);
     }
@@ -556,6 +570,8 @@ Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
       attributeNode = new Attribute(attributeName, attributeId, typeNode, Visibility::PRIVATE);
     } else if (strcmp(visibility, "protected") == 0) {
       attributeNode = new Attribute(attributeName, attributeId, typeNode, Visibility::PROTECTED);
+    } else if (strcmp(visibility, "package") == 0) {
+      attributeNode = new Attribute(attributeName, attributeId, typeNode, Visibility::PACKAGE);
     } else {
       attributeNode = new Attribute(attributeName, attributeId, typeNode);
     }

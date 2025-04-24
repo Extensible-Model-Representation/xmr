@@ -33,7 +33,7 @@ class Node {
   ~Node() = default;
 };
 
-enum Visibility { PUBLIC, PROTECTED, PRIVATE };
+enum Visibility { PUBLIC, PROTECTED, PRIVATE, PACKAGE };
 enum Direction { IN, OUT };
 
 class PackageImport : public Node {};
@@ -126,17 +126,23 @@ class Attribute : public Node {
 class ModuleNode : public Node {
  public:
   char* name_ = nullptr;
-  std::vector<std::string> qualifiedName_;
   char* id_ = nullptr;
   Visibility visibility_;
   std::vector<char*> generalizations_;
 
+  std::vector<ModuleNode*> publicModules_;
+  std::vector<ModuleNode*> privateModules_;
+  std::vector<ModuleNode*> protectedModules_;
+  std::vector<ModuleNode*> packageModules_;
+
   std::vector<Operator*> publicOperators_;
   std::vector<Operator*> protectedOperators_;
   std::vector<Operator*> privateOperators_;
+  std::vector<Operator*> packageOperators_;
   std::vector<Attribute*> publicAttributes_;
   std::vector<Attribute*> protectedAttributes_;
   std::vector<Attribute*> privateAttributes_;
+  std::vector<Attribute*> packageAttributes_;
 
   // We delineate two types of dependencies in XMR.
   // 1.) Soft dependency: A soft dependency is when the type signature of the
@@ -191,6 +197,18 @@ class ModuleNode : public Node {
     generalizations_.push_back(generalization);
   }
 
+  void addModule(ModuleNode* module) {
+    if (module->visibility_ == Visibility::PUBLIC) {
+      publicModules_.push_back(module);
+    } else if (module->visibility_ == Visibility::PRIVATE) {
+      privateModules_.push_back(module);
+    } else if (module->visibility_ == Visibility::PROTECTED) {
+      protectedModules_.push_back(module);
+    } else {
+      packageModules_.push_back(module);
+    }
+  }
+
   void addOperator(Operator* op) {
     for (size_t i = 0; i < op->params_.size(); i++) {
       if (!op->params_[i]->type_->isPrimitive_) {
@@ -207,6 +225,8 @@ class ModuleNode : public Node {
 
     } else if (op->visibility_ == Visibility::PROTECTED) {
       protectedOperators_.push_back(op);
+    } else if (op->visibility_ == Visibility::PACKAGE) {
+      packageOperators_.push_back(op);
     } else {
       publicOperators_.push_back(op);
     }
@@ -224,6 +244,8 @@ class ModuleNode : public Node {
       privateAttributes_.push_back(attribute);
     } else if (attribute->visibility_ == Visibility::PROTECTED) {
       protectedAttributes_.push_back(attribute);
+    } else if (attribute->visibility_ == Visibility::PACKAGE) {
+      packageAttributes_.push_back(attribute);
     } else {
       publicAttributes_.push_back(attribute);
     }
@@ -245,7 +267,6 @@ class ModuleNode : public Node {
 class Package : public Node {
  public:
   char* name_ = nullptr;
-  std::vector<std::string> qualifiedName_;
   char* id_ = nullptr;
   std::vector<Package*> packages_;
   std::vector<ModuleNode*> modules_;
