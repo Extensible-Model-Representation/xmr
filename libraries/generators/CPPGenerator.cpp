@@ -581,8 +581,24 @@ vector<ModuleNode*> flatten(ModelNode* root) {
 }
 
 bool hasHardCircularDependency(vector<ModuleNode*>& flattenedModules) {
-  //!@todo: Last thing todo for robust checking
-  return false;
+  vector<ModuleNode*> hardDependencies;
+
+  for (auto& module : flattenedModules) {
+    if (module->hardDependencyList_.size() > 0) hardDependencies.push_back(module);
+  }
+
+  // If there is only one module that has any form of hard dependency, cannot have circular dependency
+  // unless its on itself which is never allowed.
+  if (hardDependencies.size() <= 1) return false;
+
+  DependencyGraph dp;
+  for (auto& module : hardDependencies) {
+    for (auto& dep : module->hardDependencyList_) {
+      dp.addEdge(module->id_, dep.first);
+    }
+  }
+
+  return dp.hasCycle();
 }
 
 vector<ModuleNode*> sortHardDependencies(vector<ModuleNode*> flattenedModules) {
@@ -601,15 +617,10 @@ vector<ModuleNode*> sortHardDependencies(vector<ModuleNode*> flattenedModules) {
   DependencyGraph dp;
   for (auto& module : hardDependencies) {
     for (auto& dep : module->hardDependencyList_) {
-      cout << "Adding edge: v: " << module->id_ << " w: " << dep.first << endl;
       dp.addEdge(module->id_, dep.first);
     }
   }
   vector<string> sortedDeps = dp.topSort();
-  cout << "Sorted Deps: ";
-  for (auto& dep : sortedDeps) {
-    cout << " " << dep;
-  }
   for (size_t i = sortedDeps.size() - 1; i > hardDependencies.size(); i++) {
     if (softDependencyIds.contains(sortedDeps[i])) {
       sortedDeps.pop_back();
@@ -660,7 +671,7 @@ bool CPPGenerator::generate(std::ostream& os, ModelNode* root) {
   }
 
   if (!result) {
-    cerr << "Failed to generate due to invalid model layout. Check other logs for conditions that failed check!";
+    cerr << "Failed to generate due to invalid model layout. Check other logs for conditions that failed check!" << endl;
     return false;
   }
 
