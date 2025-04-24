@@ -14,5 +14,10 @@ class CPPGenerator : public IGenerator {
   ~CPPGenerator() {}
 
   bool generate(std::ostream& os, ModelNode* root) final;
+  bool check(ModelNode* root) final;
+
+ private:
+  bool checkCalled_ = false;
+  bool modelValid_ = false;
 };
 }  // namespace XMR

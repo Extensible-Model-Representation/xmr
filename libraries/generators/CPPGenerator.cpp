@@ -8,7 +8,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <set>
 #include <unordered_map>
+
+#include "generators/Graph.hpp"
 
 using namespace std;
 
@@ -91,9 +94,10 @@ bool generateOperator(std::ostream& os, Operator* op) {
         // lookup type name of id
         string qualifiedName;
         const size_t MIN_LENGTH = min(idNameMap[op->returnType_->type_->type_].size(), currentScope_.size());
-
+        bool global = true;
         for (size_t i = 0; i < MIN_LENGTH; i++) {
           string subPath = idNameMap[op->returnType_->type_->type_][i];
+          cout << "Sub path: " << subPath << " Current Scope: " << currentScope_[i] << endl;
           if (subPath == currentScope_[i]) {
             continue;
           } else {
@@ -422,63 +426,52 @@ bool generateAttribute(std::ostream& os, Attribute* attribute) {
 
 bool generateModule(std::ostream& os, ModuleNode* module) {
   bool result = true;
-  currentScope_.push_back(module->name_);
   os << "// Forward Decl" << endl;
 
   // Only forward declare soft dependencies that haven't been generated
   // In C++ hard dependencies must be resolved with topological sort of class generation order.
   vector<string> deps = module->getSoftDependencies();
   for (size_t i = 0; i < deps.size(); i++) {
-    if (!generatedSymbols[deps[i]]) {
-      os << "class ";
-      string qualifiedName;
-      const size_t MIN_LENGTH = min(idNameMap[deps[i]].size(), currentScope_.size());
-
+    if (!generatedSymbols[deps[i]] && (deps[i] != module->id_)) {
+      vector<string> closeBraces;
+      const size_t MIN_LENGTH = min(idNameMap[deps[i]].size() - 1, currentScope_.size());
       for (size_t j = 0; j < MIN_LENGTH; j++) {
-        string subPath = idNameMap[deps[i]][j];
-        if (subPath == currentScope_[j]) {
-          continue;
-        } else {
-          // Check if qualified name is starting in the global namespace
-          if (qualifiedName.empty() && j == 0) {
-            qualifiedName = "::" + subPath;
-          }
-          // Check if first namespace to be added
-          else if (qualifiedName.empty() && j != 0) {
-            qualifiedName = subPath;
-          }
-          // Append subpath to qualified name
-          else {
-            qualifiedName = qualifiedName + "::" + subPath;
-          }
+        if (currentScope_[j] != idNameMap[deps[i]][j]) {
+          closeBraces.push_back("}");
+          os << "namespace " << idNameMap[deps[i]][j] << " { " << endl;
         }
       }
 
-      // Check if there is any remaining names in fully qualified path
-      // given that current scope was the min length
-      if (MIN_LENGTH < idNameMap[deps[i]].size()) {
-        for (size_t j = MIN_LENGTH; j < idNameMap[deps[i]].size(); j++) {
-          string subPath = idNameMap[deps[i]][j];
-          // If empty append global namespace
-          if (qualifiedName.empty()) {
-            qualifiedName = "::" + subPath;
-          } else {
-            qualifiedName = qualifiedName + "::" + subPath;
-          }
-        }
-      }
+      os << "class " << idNameMap[deps[i]][idNameMap[deps[i]].size() - 1] << ";" << endl;
 
-      // If this is true, the dependency class is the class itself.
-      if (qualifiedName.empty()) {
-        qualifiedName = module->name_;
+      for (size_t j = 0; j < closeBraces.size(); j++) {
+        os << closeBraces[j];
+        closeBraces.pop_back();
       }
-      os << qualifiedName << ";" << endl;
     }
   }
 
   os << endl;
 
-  os << "class " << module->name_;
+  vector<string> closeBraces;
+  const size_t MIN_LENGTH = min(module->fullyQualified_.size() - 1, currentScope_.size());
+  for (size_t j = 0; j < MIN_LENGTH; j++) {
+    cout << currentScope_[j] << " " << module->fullyQualified_[j] << endl;
+    if (currentScope_[j] != module->fullyQualified_[j]) {
+      closeBraces.push_back("}");
+      os << "namespace " << module->fullyQualified_[j] << " { " << endl;
+      currentScope_.push_back(module->fullyQualified_[j]);
+    }
+  }
+
+  for (size_t j = MIN_LENGTH; j < module->fullyQualified_.size() - 1; j++) {
+    closeBraces.push_back("}");
+    os << "namespace " << module->fullyQualified_[j] << " { " << endl;
+    currentScope_.push_back(module->fullyQualified_[j]);
+  }
+
+  os << "class " << module->fullyQualified_[module->fullyQualified_.size() - 1] << endl;
+  currentScope_.push_back(module->name_);
 
   // Check for inheritance
   if (!module->generalizations_.empty()) {
@@ -498,7 +491,7 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
       }
 
       // Generate the nth qualified name;
-      os << "public";
+      os << "public ";
       string qualifiedName = generateQualifedName(module->generalizations_[module->generalizations_.size() - 1]);
       os << qualifiedName;
     }
@@ -542,32 +535,147 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
   }
 
   os << "}; // class " << module->name_ << " " << module->id_ << endl << endl;
+  currentScope_.pop_back();
+
+  for (size_t j = 0; j < closeBraces.size(); j++) {
+    os << closeBraces[j];
+    currentScope_.pop_back();
+    closeBraces.pop_back();
+  }
 
   generatedSymbols[module->id_] = true;
-  currentScope_.pop_back();
   return result;
 }
 
-bool generatePackage(ostream& os, Package* package) {
-  bool result = true;
-  currentScope_.push_back(package->name_);
-  os << "namespace " << package->name_ << "{" << endl << endl;
-
-  for (size_t i = 0; i < package->packages_.size(); i++) {
-    result = generatePackage(os, package->packages_[i]) && result;
+// Flattens all modules to be used for circular dependency checks and topalogical sort
+vector<ModuleNode*> flatten(ModelNode* root) {
+  cout << "Flattening Modules" << endl;
+  vector<ModuleNode*> flattenedModules;
+  for (auto& package : root->packages_) {
+    flattenedModules.insert(flattenedModules.end(), package->modules_.begin(), package->modules_.end());
   }
 
-  for (size_t i = 0; i < package->modules_.size(); i++) {
-    result = generateModule(os, package->modules_[i]) && result;
+  flattenedModules.insert(flattenedModules.end(), root->modules_.begin(), root->modules_.end());
+  cout << "Finished flattening modules" << endl;
+  return flattenedModules;
+}
+
+bool hasHardCircularDependency(vector<ModuleNode*>& flattenedModules) {
+  cout << "Checking for circular dependencies" << endl;
+  vector<ModuleNode*> hardDependencies;
+
+  for (auto& module : flattenedModules) {
+    if (module->hardDependencyList_.size() > 0) hardDependencies.push_back(module);
   }
 
-  os << "} // namespace " << package->name_ << " " << package->id_ << endl << endl;
-  currentScope_.pop_back();
-  return result;
+  // If there is only one module that has any form of hard dependency, cannot have circular dependency
+  // unless its on itself which is never allowed.
+  if (hardDependencies.size() <= 1) {
+    cout << "Finished Checking for circular dependencies" << endl;
+    return false;
+  }
+
+  DependencyGraph dp;
+  for (auto& module : hardDependencies) {
+    for (auto& dep : module->hardDependencyList_) {
+      dp.addEdge(module->id_, dep.first);
+    }
+  }
+
+  cout << "Finished Checking for circular dependencies" << endl;
+  return dp.hasCycle();
+}
+
+vector<ModuleNode*> sortHardDependencies(vector<ModuleNode*> flattenedModules) {
+  cout << "Starting dependency sort" << endl;
+  vector<ModuleNode*> softDependenciesOnly;
+  set<string> softDependencyIds;
+  vector<ModuleNode*> hardDependencies;
+
+  for (auto& module : flattenedModules) {
+    if (module->hardDependencyList_.size() > 0) {
+      hardDependencies.push_back(module);
+    } else {
+      softDependenciesOnly.push_back(module);
+      softDependencyIds.insert(module->id_);
+    }
+  }
+  vector<ModuleNode*> sortedModules;
+  if (hardDependencies.size() > 1) {
+    DependencyGraph dp;
+    for (auto& module : hardDependencies) {
+      for (auto& dep : module->hardDependencyList_) {
+        dp.addEdge(module->id_, dep.first);
+      }
+    }
+    vector<string> sortedDeps = dp.topSort();
+    for (size_t i = sortedDeps.size() - 1; i > hardDependencies.size(); i++) {
+      if (softDependencyIds.contains(sortedDeps[i])) {
+        sortedDeps.pop_back();
+      } else {
+        break;
+      }
+    }
+    // At this point, the sorted deps contains xmi id's of only modules that have hard dependencies but are are sorted correctly
+    for (auto& id : sortedDeps) {
+      for (auto& module : hardDependencies) {
+        if (id == module->id_) {
+          sortedModules.push_back(module);
+        }
+      }
+    }
+  } else {
+    sortedModules.insert(sortedModules.end(), hardDependencies.begin(), hardDependencies.end());
+  }
+
+  sortedModules.insert(sortedModules.end(), softDependenciesOnly.begin(), softDependenciesOnly.end());
+  // now reverse order so elements with the least # of hard deps are first in gen order
+  reverse(sortedModules.begin(), sortedModules.end());
+
+  cout << "Finished dependency sort" << endl;
+  return sortedModules;
+}
+
+bool CPPGenerator::check(ModelNode* root) {
+  checkCalled_ = true;
+
+  vector<ModuleNode*> flattenedModules = flatten(root);
+
+  if (flattenedModules.empty()) {
+    cerr << "Failed to flatten modules!" << endl;
+    return false;
+  }
+
+  if (hasHardCircularDependency(flattenedModules)) {
+    cerr << "C++ cannot have hard circular dependencies!" << endl;
+    modelValid_ = false;
+    return false;
+  }
+
+  // now can  inverse toplogical sort hard dependencies
+  vector<ModuleNode*> sortedModules = sortHardDependencies(flattenedModules);
+  if (sortedModules.empty()) {
+    cerr << "Failed to sort modules by dependency order!" << endl;
+  }
+  root->packages_.clear();
+  root->modules_ = sortedModules;
+  modelValid_ = true;
+  return true;
 }
 
 bool CPPGenerator::generate(std::ostream& os, ModelNode* root) {
-  bool result = true;
+  bool result;
+  if (!checkCalled_) {
+    result = this->check(root);
+  } else {
+    result = modelValid_;
+  }
+
+  if (!result) {
+    cerr << "Failed to generate due to invalid model layout. Check other logs for conditions that failed check!" << endl;
+    return false;
+  }
+
   currentScope_.push_back(root->name_);
   idNameMap = root->idNameMap_;
   char* modelName = root->name_;
@@ -579,10 +687,7 @@ bool CPPGenerator::generate(std::ostream& os, ModelNode* root) {
     os << endl << endl;
   }
 
-  for (size_t i = 0; i < root->packages_.size(); i++) {
-    result = generatePackage(os, root->packages_[i]) && result;
-    os << endl << endl;
-  }
+  //!@note: We do not generate packages as these are removed when we flatten the modules
 
   os << "} // namespace " << modelName << " " << root->id_ << endl << endl;
 

@@ -15,7 +15,6 @@
 
 using namespace xercesc;
 using namespace std;
-
 namespace XMR {
 
 // Constructor
@@ -283,7 +282,6 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
   }
   currentScope_.push_back(moduleName);
   ModuleNode* moduleNode;
-
   if (visibility == nullptr)
     moduleNode = new ModuleNode(moduleName, moduleId, currentScope_);
   else {
@@ -297,18 +295,11 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
   }
   moduleNode->qualifiedName_ = currentScope_;  // save path to module
   XMLString::release(&visibility);
-  DOMNodeList* generalizations = mod->getElementsByTagName(generalizationAttrKey_);
-  for (size_t i = 0; i < generalizations->getLength(); i++) {
-    DOMElement* general = (DOMElement*)generalizations->item(i);
-    char* generalType = XMLString::transcode(general->getAttribute(generalKey_));
-    moduleNode->addGeneralization(generalType);
-  }
 
   // Grab children
   DOMNodeList* nodes = mod->getChildNodes();
 
   if (nodes != nullptr) {
-    // Loop through children of the package
     while (nodes->getLength() > 0) {
       DOMNode* node = nodes->item(0);
 
@@ -351,6 +342,11 @@ ModuleNode* PapyrusParser::parseModule(xercesc::DOMElement* mod) {
           }
           moduleNode->addAttribute(attributeNode);
 
+        } break;
+
+        case UmlType::GENERALIZATION: {
+          char* generalType = XMLString::transcode(domElement->getAttribute(generalKey_));
+          moduleNode->addGeneralization(generalType);
         } break;
 
         default:
@@ -401,6 +397,11 @@ Operator* PapyrusParser::parseOperator(xercesc::DOMElement* op) {
       Param* paramNode = nullptr;
       Param* returnNode = nullptr;
       if (!param->hasAttribute(attributeTypeKey_)) {
+        // Check worst case no type associated return nullptr!
+        if (param->getElementsByTagName(attributeTypeKey_)->getLength() <= 0) {
+          cerr << "No type associated with operator parameter: " << (name == nullptr ? "return" : name) << " param Id: " << id << " for operator: " << operatorName << endl;
+          return nullptr;
+        }
         // primitive type
         DOMElement* typeDomElement = (DOMElement*)param->getElementsByTagName(attributeTypeKey_)->item(0);
         typeNode = new Type(XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);
@@ -530,6 +531,11 @@ Attribute* PapyrusParser::parseAttribute(xercesc::DOMElement* attribute) {
   Type* typeNode = nullptr;
   // If fail means primitive type
   if (!attribute->hasAttribute(attributeTypeKey_)) {
+    // Check worst case no type associated return nullptr!
+    if (attribute->getElementsByTagName(attributeTypeKey_)->getLength() <= 0) {
+      cerr << "No type associated with property: " << attributeName << " property Id: " << attributeId << endl;
+      return nullptr;
+    }
     // primitive type
     DOMElement* typeDomElement = (DOMElement*)attribute->getElementsByTagName(attributeTypeKey_)->item(0);
     typeNode = new Type(XMLString::transcode(typeDomElement->getAttribute(hrefKey_)), true);

@@ -26,8 +26,7 @@ int main(int argc, char* argv[]) {
   int c;
 
   opterr = 0;
-  while ((c = getopt(argc, argv, "f:p:g:o:")) !=
-         -1)  // The last arg contains a list of valid arguments
+  while ((c = getopt(argc, argv, "f:p:g:o:")) != -1)  // The last arg contains a list of valid arguments
   {
     switch (c) {
       case 'o':
@@ -90,14 +89,12 @@ int main(int argc, char* argv[]) {
   }
 
   // Dynamically load the parser create and destroy methods
-  IParser* (*parser_create)() =
-      (IParser * (*)()) dlsym(parser_handle, "create_parser");
+  IParser* (*parser_create)() = (IParser * (*)()) dlsym(parser_handle, "create_parser");
   if (parser_create == NULL) {
     cerr << "Could not load parse object create method: " << dlerror() << endl;
     abort();
   }
-  void (*parser_destroy)(IParser*) =
-      (void (*)(IParser*))dlsym(parser_handle, "destroy_parser");
+  void (*parser_destroy)(IParser*) = (void (*)(IParser*))dlsym(parser_handle, "destroy_parser");
   if (parser_destroy == NULL) {
     cerr << "Could not load parse object delete method: " << dlerror() << endl;
     abort();
@@ -111,7 +108,9 @@ int main(int argc, char* argv[]) {
     dlclose(parser_handle);
     return -1;
   };
+  cout << "Starting Model Parse" << endl;
   ModelNode* root = parser->parse();
+  cout << "Finish Model Parse" << endl;
   parser_destroy(parser);
   dlclose(parser_handle);
   // Done parsing the document
@@ -123,25 +122,22 @@ int main(int argc, char* argv[]) {
   }
 
   // Dynamically load the generator create and destroy methods
-  IGenerator* (*generator_create)() =
-      (IGenerator * (*)()) dlsym(generator_handle, "create_generator");
+  IGenerator* (*generator_create)() = (IGenerator * (*)()) dlsym(generator_handle, "create_generator");
   if (generator_create == NULL) {
-    cerr << "Could not load generator object create method: " << dlerror()
-         << endl;
+    cerr << "Could not load generator object create method: " << dlerror() << endl;
     abort();
   }
-  void (*generator_destroy)(IGenerator*) =
-      (void (*)(IGenerator*))dlsym(generator_handle, "destroy_generator");
+  void (*generator_destroy)(IGenerator*) = (void (*)(IGenerator*))dlsym(generator_handle, "destroy_generator");
   if (generator_destroy == NULL) {
-    cerr << "Could not load generator object delete method: " << dlerror()
-         << endl;
+    cerr << "Could not load generator object delete method: " << dlerror() << endl;
     abort();
   }
-  IGenerator* generator =
-      (IGenerator*)generator_create();  // create generator object
+  IGenerator* generator = (IGenerator*)generator_create();  // create generator object
 
   if (root != nullptr) {
-    generator->generate(outputFile, root);
+    cout << "Starting code generation" << endl;
+    bool genResult = generator->generate(outputFile, root);
+    cout << "Finished Generation with result: " << genResult << endl;
   } else {
     cerr << "Root returned is null" << endl;
     generator_destroy(generator);
