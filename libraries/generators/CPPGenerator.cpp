@@ -97,7 +97,6 @@ bool generateOperator(std::ostream& os, Operator* op) {
         bool global = true;
         for (size_t i = 0; i < MIN_LENGTH; i++) {
           string subPath = idNameMap[op->returnType_->type_->type_][i];
-          cout << "Sub path: " << subPath << " Current Scope: " << currentScope_[i] << endl;
           if (subPath == currentScope_[i]) {
             continue;
           } else {
@@ -442,11 +441,18 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
         }
       }
 
+      for (size_t j = MIN_LENGTH; j < idNameMap[deps[i]].size() - 1; j++) {
+        closeBraces.push_back("}");
+        os << "namespace " << idNameMap[deps[i]][j] << " { " << endl;
+        currentScope_.push_back(idNameMap[deps[i]][j]);
+      }
+
       os << "class " << idNameMap[deps[i]][idNameMap[deps[i]].size() - 1] << ";" << endl;
 
       for (size_t j = 0; j < closeBraces.size(); j++) {
         os << closeBraces[j];
         closeBraces.pop_back();
+        currentScope_.pop_back();
       }
     }
   }
@@ -456,7 +462,6 @@ bool generateModule(std::ostream& os, ModuleNode* module) {
   vector<string> closeBraces;
   const size_t MIN_LENGTH = min(module->fullyQualified_.size() - 1, currentScope_.size());
   for (size_t j = 0; j < MIN_LENGTH; j++) {
-    cout << currentScope_[j] << " " << module->fullyQualified_[j] << endl;
     if (currentScope_[j] != module->fullyQualified_[j]) {
       closeBraces.push_back("}");
       os << "namespace " << module->fullyQualified_[j] << " { " << endl;
