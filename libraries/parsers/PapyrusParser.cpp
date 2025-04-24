@@ -15,7 +15,6 @@
 
 using namespace xercesc;
 using namespace std;
-
 namespace XMR {
 
 // Constructor
