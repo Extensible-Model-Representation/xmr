@@ -19,7 +19,7 @@
 set(XERCESC_INCLUDE ${CMAKE_SOURCE_DIR}/build/_deps/xerces-c-src/src ${CMAKE_SOURCE_DIR}/build/_deps/xerces-c-build/src)
 
 # Find and compile all the parser files into .so files
-FILE(GLOB_RECURSE PARSERS ${CMAKE_CURRENT_LIST_DIR}/parsers/#.cpp)
+FILE(GLOB_RECURSE PARSERS ${CMAKE_CURRENT_LIST_DIR}/parsers/*.cpp)
 foreach(SRC ${PARSERS})
     get_filename_component(PARSERNAME ${SRC} NAME_WE)
     add_library(${PARSERNAME} SHARED ${SRC})
@@ -29,7 +29,7 @@ foreach(SRC ${PARSERS})
 endforeach()
 
 # Find and compile all the generator files into .so files
-FILE(GLOB_RECURSE GENERATORS ${CMAKE_CURRENT_LIST_DIR}/generators/#.cpp)
+FILE(GLOB_RECURSE GENERATORS ${CMAKE_CURRENT_LIST_DIR}/generators/*.cpp)
 foreach(SRC ${GENERATORS})
     get_filename_component(GENERATORNAME ${SRC} NAME_WE)
     add_library(${GENERATORNAME} SHARED ${SRC})
