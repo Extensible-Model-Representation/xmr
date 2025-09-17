@@ -1,17 +1,65 @@
-<h1>Extensible Model Representation - XMR</h1>
-<h3>Project Requirements</h3>
-- git >=2.43.5 <br>
-- cmake >=3.25.0 <br>
-- C++ >=20 <br>
-<h3>Building Project</h3>
-1. Configure CMake project: cmake -S ./xmr -B ./build <br>
-2. Build project: cmake --build ./build 
-<h3>Running The Tool</h3>
-After building there will be an XMR binary in the build director. This is the application binary to invoke. <br>
-There is only one required option -f which lets you specify the model meta-data input file to be parsed and generated. <br>
-If no other options are specified, the tool will assume you are providing a UML XMI file from the Papyrus modeling tool <br> 
-and it will generate C++ code. The code will be outputted to a.cpp in the same directory you executed the binary from. <br>
-There are three optional command line arguments: <br>
--o: This lets you specify a new output file name <br>
--g: This lets you set a new code generator shared object file to dynamically loaded at runtime to provide a different generator than the built in C++ generator. The shared object library need to provide an extern to a create_generator method that returns a new IGenerator object and a destroy_generator method that deallocates the IGenerator object. <br>
--p: This lets you set a new parser shared object file to dynamically loaded at runtime to provide a different parser than the build in UML XMI Papyrus parser. The shared object library needs to provide an extern to a create_parser method that returns a new IParser object and a destroy_parser method that deallocates the IParser object. <br>
+# Extensible Model Representation (XMR)
+
+### Project Requirements
+- git ≥ 2.43.5  
+- CMake ≥ 3.25.0  
+- C++ ≥ 20  
+
+---
+
+### Building the Project
+1. Configure:
+```bash
+cmake -S ./xmr -B ./build
+```
+2. Build:
+```bash
+cmake --build ./build
+```
+
+---
+
+### Running the Tool
+After building, an **XMR** binary will be in `./build`. Run it with:
+
+```bash
+./build/XMR -f <model-input>
+```
+
+- **`-f <path>` (required):** Path to the model metadata input file.  
+- If no other options are supplied, XMR assumes a **Papyrus UML XMI** input and generates **C++**.  
+- The output defaults to `a.cpp` in the current working directory.
+
+#### Optional arguments
+- **`-o <path>`:** Set a custom output file name.  
+- **`-g <shared-lib>`:** Load a custom **generator** at runtime. The library must export `create_generator` and `destroy_generator` entry points that construct/destroy an `IGenerator` instance.  
+- **`-p <shared-lib>`:** Load a custom **parser** at runtime. The library must export `create_parser` and `destroy_parser` entry points that construct/destroy an `IParser` instance.  
+
+---
+
+### Quick Usage Examples (CLI only)
+- **Default Papyrus XMI → C++ (to `a.cpp`):**
+```bash
+./build/XMR -f MySystem.xmi
+```
+- **Custom output file:**
+```bash
+./build/XMR -f MySystem.xmi -o out/SystemImpl.cpp
+```
+- **Custom parser and generator plugins:**
+```bash
+./build/XMR -f model.any -p ./parsers/libmyparser.so -g ./generators/librustgen.so -o out/main.rs
+```
+
+---
+
+### Project Background (Thesis)
+XMR is based on the Santa Clara University senior thesis **“XMR: Extensible Model Representation”** by **Jason Cisneros** and **Lucas Van Der Heijden** (Date of Award: **June 10, 2025**). The work targets **safety-critical domains (e.g., aerospace)** where V&V is essential, and manual alignment between validated high-level models and low-level implementations is **tedious, time-consuming, and error-prone**.  
+
+XMR provides an **open-source** path to **automatically generate code directly from UML models**, reducing human error and cost, and improving configurability compared to proprietary toolchains such as **MATLAB/Simulink**.
+
+📄 [Read the thesis here](https://scholarcommons.scu.edu/cseng_senior/342/)  
+
+> **Recommended citation:**  
+> Cisneros, Jason and Van Der Heijden, Lucas, “XMR: Extensible Model Representation” (2025). *Computer Science and Engineering Senior Theses*, 342.  
+
